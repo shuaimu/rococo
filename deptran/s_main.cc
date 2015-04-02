@@ -70,7 +70,8 @@ static void run_scsi() {
 
 int main(int argc, char *argv[]) {
     int ret;
-
+    rrr::Coroutine::init();
+    
     // read configuration
     if (0 != (ret = Config::create_config(argc, argv))) {
         Log_fatal("Read config failed");

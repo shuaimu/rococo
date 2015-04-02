@@ -34,14 +34,14 @@ public:
 
 
 public:
-    void rpc_null(rrr::DeferredReply* defer);
+    coro_f( rpc_null, rrr::DeferredReply* defer);
 
-    void batch_start_pie(const BatchRequestHeader &batch_header,
+    coro_f( batch_start_pie,const BatchRequestHeader &batch_header,
             const std::vector<Value> &input,
             rrr::i32 *res,
             std::vector<Value> *output);
 
-    void naive_batch_start_pie(
+    coro_f( naive_batch_start_pie,
             const std::vector<RequestHeader> &header,
             const std::vector<vector<Value>> &input,
             const std::vector<i32> &output_size,
@@ -49,14 +49,14 @@ public:
             std::vector<vector<Value>> *output,
             rrr::DeferredReply *defer);
 
-    void start_pie(const RequestHeader &header,
+    coro_f (start_pie,const RequestHeader &header,
             const std::vector<Value>& input,
             const rrr::i32 &output_size,
             rrr::i32* res,
             std::vector<Value>* output,
             rrr::DeferredReply* defer);
 
-    void prepare_txn(const rrr::i64& tid,
+    coro_f( prepare_txn,const rrr::i64& tid,
             const std::vector<i32> &sids,
             rrr::i32* res,
             rrr::DeferredReply* defer);
@@ -67,11 +67,11 @@ public:
             rrr::DeferredReply* defer,
             std::string *log_s = NULL);
 
-    void commit_txn(const rrr::i64& tid,
+    coro_f( commit_txn,const rrr::i64& tid,
             rrr::i32* res,
             rrr::DeferredReply* defer);
 
-    void abort_txn(const rrr::i64& tid,
+    coro_f( abort_txn,const rrr::i64& tid,
             rrr::i32* res,
             rrr::DeferredReply* defer);
 
@@ -103,29 +103,29 @@ public:
 
     RococoServiceImpl(DTxnMgr *dtxn_mgr, ServerControlServiceImpl *scsi = NULL);
 
-    void rcc_batch_start_pie(
+    coro_f( rcc_batch_start_pie,
             const std::vector<RequestHeader> &headers,
             const std::vector<std::vector<Value>> &inputs,
             BatchChopStartResponse *res,
             rrr::DeferredReply* defer);
 
-    void rcc_start_pie(
+    coro_f( rcc_start_pie,
             const RequestHeader& header,
             const std::vector<Value> &input,
             ChopStartResponse* res,
             rrr::DeferredReply* defer);
 
-    void rcc_finish_txn(
+    coro_f( rcc_finish_txn,
             const ChopFinishRequest& req,
             ChopFinishResponse* res,
             rrr::DeferredReply*) ;
 
-    void rcc_ask_txn(
+    coro_f( rcc_ask_txn,
             const rrr::i64& tid,
             CollectFinishResponse* res,
             rrr::DeferredReply*) ;
 
-    void rcc_ro_start_pie(
+    coro_f( rcc_ro_start_pie,
             const RequestHeader &header,
             const vector<Value> &input,
             vector<Value> *output,

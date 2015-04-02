@@ -51,7 +51,7 @@ void RococoServiceImpl::do_start_pie(
     }
 }
 
-void RococoServiceImpl::batch_start_pie(
+coro_f( RococoServiceImpl::batch_start_pie,
         const BatchRequestHeader& batch_header,
         const std::vector<Value>& input,
         rrr::i32* res,
@@ -88,7 +88,7 @@ void RococoServiceImpl::batch_start_pie(
     bsah_output.done_output();
 }
 
-void RococoServiceImpl::naive_batch_start_pie(
+coro_f( RococoServiceImpl::naive_batch_start_pie,
         const std::vector<RequestHeader> &headers,
         const std::vector<vector<Value>> &inputs,
         const std::vector<i32> &output_sizes,
@@ -129,13 +129,14 @@ void RococoServiceImpl::naive_batch_start_pie(
     Log::debug("still fine");
 }
 
-void RococoServiceImpl::start_pie(
+coro_f( RococoServiceImpl::start_pie,
         const RequestHeader& header,
         const std::vector<mdb::Value>& input,
         const rrr::i32 &output_size,
         rrr::i32* res,
         std::vector<mdb::Value>* output,
         rrr::DeferredReply* defer) {
+    REG_CORO;
 
     std::lock_guard<std::mutex> guard(mtx_);
 
@@ -179,7 +180,7 @@ void RococoServiceImpl::start_pie(
     }
 }
 
-void RococoServiceImpl::prepare_txn(
+coro_f( RococoServiceImpl::prepare_txn,
         const rrr::i64& tid,
         const std::vector<i32> &sids,
         rrr::i32* res,
@@ -239,7 +240,7 @@ void RococoServiceImpl::prepare_txn_job(
         defer->reply();
 }
 
-void RococoServiceImpl::commit_txn(
+coro_f( RococoServiceImpl::commit_txn,
         const rrr::i64& tid,
         rrr::i32* res,
         rrr::DeferredReply* defer) {
@@ -261,7 +262,7 @@ void RococoServiceImpl::commit_txn(
     defer->reply();
 }
 
-void RococoServiceImpl::abort_txn(
+coro_f( RococoServiceImpl::abort_txn,
         const rrr::i64& tid,
         rrr::i32* res,
         rrr::DeferredReply* defer) {
@@ -294,7 +295,7 @@ void RococoServiceImpl::abort_txn(
 }
 
 
-void RococoServiceImpl::rcc_batch_start_pie(
+coro_f( RococoServiceImpl::rcc_batch_start_pie,
         const std::vector<RequestHeader> &headers,
         const std::vector<std::vector<Value>> &inputs,
         BatchChopStartResponse* res,
@@ -341,7 +342,7 @@ void RococoServiceImpl::rcc_batch_start_pie(
     }
 }
 
-void RococoServiceImpl::rcc_start_pie(
+coro_f( RococoServiceImpl::rcc_start_pie,
         const RequestHeader &header,
         const std::vector<Value> &input,
         ChopStartResponse* res,
@@ -374,7 +375,7 @@ void RococoServiceImpl::rcc_start_pie(
     }
 }
 
-void RococoServiceImpl::rcc_finish_txn( // equivalent to commit phrase
+coro_f( RococoServiceImpl::rcc_finish_txn, // equivalent to commit phrase
         const ChopFinishRequest& req,
         ChopFinishResponse* res,
         rrr::DeferredReply* defer) {
@@ -397,7 +398,7 @@ void RococoServiceImpl::rcc_finish_txn( // equivalent to commit phrase
     txn->commit(req, res, defer);
 }
 
-void RococoServiceImpl::rcc_ask_txn(
+coro_f( RococoServiceImpl::rcc_ask_txn,
         const rrr::i64& tid,
         CollectFinishResponse* res,
         rrr::DeferredReply* defer) {
@@ -430,7 +431,7 @@ void RococoServiceImpl::rcc_ask_txn(
     ball->trigger();
 }
 
-void RococoServiceImpl::rcc_ro_start_pie(
+coro_f( RococoServiceImpl::rcc_ro_start_pie,
         const RequestHeader &header,
         const vector<Value> &input,
         vector<Value> *output,
@@ -443,7 +444,7 @@ void RococoServiceImpl::rcc_ro_start_pie(
     dtxn->start_ro(header, input, *output, defer);
 }
 
-void RococoServiceImpl::rpc_null(rrr::DeferredReply* defer) {
+coro_f( RococoServiceImpl::rpc_null,rrr::DeferredReply* defer) {
     defer->reply();
 }
 

@@ -354,7 +354,7 @@ class ClientController(object):
                 recording = " -r '" + self.recording_path + "/deptran_client_" + str(i) + "' "
                 cmd += "mkdir -p '" + self.recording_path + "'; "
             cmd += "cd " + deptran_home + "; " \
-                + " nohup " + self.taskset_func(i) + " ./build/deptran_client " \
+                + " nohup " + self.taskset_func(i) + " ./cmakebuild/deptran_client " \
                 + " -c " + str(i) \
                 + " -d " + str(self.duration) \
                 + " -f " + filename \
@@ -798,7 +798,7 @@ class ServerController(object):
                 recording = " -r '" + self.recording_path + "/deptran_server_" + str(i) + "' "
                 cmd += "mkdir -p '" + self.recording_path + "'; "
             cmd += "cd " + deptran_home + "; "
-            cmd += "nohup " + self.taskset_func(machine_no) + " ./build/deptran_server " \
+            cmd += "nohup " + self.taskset_func(machine_no) + " ./cmakebuild/deptran_server " \
                 + " -s " + str(i) \
                 + " -f " + filename \
                 + " -p " + self.s_info[i][1] \
@@ -851,7 +851,7 @@ def main():
         parser.add_option("-r", "--recording-path", dest="recording_path", help="Recording path", default="", metavar="RECORDING_PATH")
         parser.add_option("-x", "--interest-txn", dest="interest_txn", 
                 help="interest txn", default=g_interest_txn, metavar="INTEREST_TXN")
-        parser.add_option("-H", "--hosts", dest="hosts_path", help="hosts path", default="./config/hosts", metavar="HOSTS_PATH")
+        parser.add_option("-H", "--hosts", dest="hosts_path", help="hosts path", default="./config/hosts-local", metavar="HOSTS_PATH")
 
         (options, args) = parser.parse_args()
 
