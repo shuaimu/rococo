@@ -18,3 +18,7 @@ tmp_conf*.xml
 benchmark*.log
 log*
 .idea
+
+config.teaker.xml
+run.py
+test.sh
