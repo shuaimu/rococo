@@ -69,8 +69,10 @@ static void run_scsi() {
 }
 
 int main(int argc, char *argv[]) {
-    int ret;
+#ifdef COROUTINE
     rrr::Coroutine::init();
+#endif
+    int ret;
     
     // read configuration
     if (0 != (ret = Config::create_config(argc, argv))) {

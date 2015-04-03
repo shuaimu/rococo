@@ -377,10 +377,12 @@ private:
         };
         rrr::DeferredReply* __defer__ = new rrr::DeferredReply(req, sconn, __marshal_reply__, __cleanup__);
 
+    #ifdef COROUTINE
         auto f = boost::bind(&RococoService::start_pie, this, _1, boost::ref(*in_0), boost::ref(*in_1), boost::ref(*in_2), out_0, out_1, __defer__);
-        //coro_t c(f);
         rrr::Coroutine::mkcoroutine(f);
-        //this->start_pie(*in_0, *in_1, *in_2, out_0, out_1, __defer__);
+    #else
+        this->start_pie(*in_0, *in_1, *in_2, out_0, out_1, __defer__);
+    #endif
     }
     void __prepare_txn__wrapper__(rrr::Request* req, rrr::ServerConnection* sconn) {
         rrr::i64* in_0 = new rrr::i64;
@@ -398,9 +400,12 @@ private:
         };
         rrr::DeferredReply* __defer__ = new rrr::DeferredReply(req, sconn, __marshal_reply__, __cleanup__);
 
+    #ifdef COROUTINE
         auto f = boost::bind(&RococoService::prepare_txn, this, _1, boost::ref(*in_0), boost::ref(*in_1), out_0, __defer__);
         rrr::Coroutine::mkcoroutine(f);
-        //this->prepare_txn(*in_0, *in_1, out_0, __defer__);
+    #else
+        this->prepare_txn(*in_0, *in_1, out_0, __defer__);
+    #endif
     }
     void __commit_txn__wrapper__(rrr::Request* req, rrr::ServerConnection* sconn) {
         rrr::i64* in_0 = new rrr::i64;
@@ -415,9 +420,12 @@ private:
         };
         rrr::DeferredReply* __defer__ = new rrr::DeferredReply(req, sconn, __marshal_reply__, __cleanup__);
 
+    #ifdef COROUTINE
         auto f = boost::bind(&RococoService::commit_txn, this, _1, boost::ref(*in_0), out_0, __defer__);
         rrr::Coroutine::mkcoroutine(f);
-        //this->commit_txn(*in_0, out_0, __defer__);
+    #else
+        this->commit_txn(*in_0, out_0, __defer__);
+    #endif
     }
     void __abort_txn__wrapper__(rrr::Request* req, rrr::ServerConnection* sconn) {
         rrr::i64* in_0 = new rrr::i64;
@@ -432,9 +440,12 @@ private:
         };
         rrr::DeferredReply* __defer__ = new rrr::DeferredReply(req, sconn, __marshal_reply__, __cleanup__);
 
+    #ifdef COROUTINE
         auto f = boost::bind(&RococoService::abort_txn, this, _1, boost::ref(*in_0), out_0, __defer__);
         rrr::Coroutine::mkcoroutine(f);
-        //this->abort_txn(*in_0, out_0, __defer__);
+    #else
+        this->abort_txn(*in_0, out_0, __defer__);
+    #endif
     }
     void __batch_start_pie__wrapper__(rrr::Request* req, rrr::ServerConnection* sconn) {
         BatchRequestHeader in_0;
@@ -444,9 +455,13 @@ private:
         rrr::i32 out_0;
         std::vector<Value> out_1;
 
+    #ifdef COROUTINE
         auto f = boost::bind(&RococoService::batch_start_pie, this, _1, boost::ref(in_0), boost::ref(in_1), &out_0, &out_1);
         rrr::Coroutine::mkcoroutine(f);
-        //this->batch_start_pie(in_0, in_1, &out_0, &out_1);
+    #else
+        this->batch_start_pie(in_0, in_1, &out_0, &out_1);
+    #endif
+
         sconn->begin_reply(req);
         *sconn << out_0;
         *sconn << out_1;
@@ -475,10 +490,13 @@ private:
             delete out_1;
         };
         rrr::DeferredReply* __defer__ = new rrr::DeferredReply(req, sconn, __marshal_reply__, __cleanup__);
-        
+    
+    #ifdef COROUTINE
         auto f = boost::bind(&RococoService::naive_batch_start_pie, this, _1, boost::ref(*in_0), boost::ref(*in_1), boost::ref(*in_2), out_0, out_1, __defer__);
         rrr::Coroutine::mkcoroutine(f);
-        //this->naive_batch_start_pie(*in_0, *in_1, *in_2, out_0, out_1, __defer__);
+    #else
+        this->naive_batch_start_pie(*in_0, *in_1, *in_2, out_0, out_1, __defer__);
+    #endif
     }
     void __rcc_start_pie__wrapper__(rrr::Request* req, rrr::ServerConnection* sconn) {
         RequestHeader* in_0 = new RequestHeader;
@@ -496,9 +514,12 @@ private:
         };
         rrr::DeferredReply* __defer__ = new rrr::DeferredReply(req, sconn, __marshal_reply__, __cleanup__);
 
+    #ifdef COROUTINE
         auto f = boost::bind(&RococoService::rcc_start_pie, this, _1, boost::ref(*in_0), boost::ref(*in_1), out_0, __defer__);
         rrr::Coroutine::mkcoroutine(f);
-        //this->rcc_start_pie(*in_0, *in_1, out_0, __defer__);
+    #else
+        this->rcc_start_pie(*in_0, *in_1, out_0, __defer__);
+    #endif
     }
     void __rcc_finish_txn__wrapper__(rrr::Request* req, rrr::ServerConnection* sconn) {
         ChopFinishRequest* in_0 = new ChopFinishRequest;
@@ -512,10 +533,13 @@ private:
             delete out_0;
         };
         rrr::DeferredReply* __defer__ = new rrr::DeferredReply(req, sconn, __marshal_reply__, __cleanup__);
-        
+    
+    #ifdef COROUTINE
         auto f = boost::bind(&RococoService::rcc_finish_txn, this, _1, boost::ref(*in_0), out_0, __defer__);
         rrr::Coroutine::mkcoroutine(f);
-        //this->rcc_finish_txn(*in_0, out_0, __defer__);
+    #else
+        this->rcc_finish_txn(*in_0, out_0, __defer__);
+    #endif
     }
     void __rcc_ask_txn__wrapper__(rrr::Request* req, rrr::ServerConnection* sconn) {
         rrr::i64* in_0 = new rrr::i64;
@@ -529,10 +553,13 @@ private:
             delete out_0;
         };
         rrr::DeferredReply* __defer__ = new rrr::DeferredReply(req, sconn, __marshal_reply__, __cleanup__);
-        
+    
+    #ifdef COROUTINE
         auto f = boost::bind(&RococoService::rcc_ask_txn, this, _1, boost::ref(*in_0), out_0, __defer__);
         rrr::Coroutine::mkcoroutine(f);
-        //this->rcc_ask_txn(*in_0, out_0, __defer__);
+    #else
+        this->rcc_ask_txn(*in_0, out_0, __defer__);
+    #endif
     }
     void __rcc_ro_start_pie__wrapper__(rrr::Request* req, rrr::ServerConnection* sconn) {
         RequestHeader* in_0 = new RequestHeader;
@@ -549,10 +576,13 @@ private:
             delete out_0;
         };
         rrr::DeferredReply* __defer__ = new rrr::DeferredReply(req, sconn, __marshal_reply__, __cleanup__);
-        
+    
+    #ifdef COROUTINE
         auto f = boost::bind(&RococoService::rcc_ro_start_pie, this, _1, boost::ref(*in_0), boost::ref(*in_1), out_0, __defer__);
         rrr::Coroutine::mkcoroutine(f);
-        //this->rcc_ro_start_pie(*in_0, *in_1, out_0, __defer__);
+    #else
+        this->rcc_ro_start_pie(*in_0, *in_1, out_0, __defer__);
+    #endif
     }
     void __rcc_batch_start_pie__wrapper__(rrr::Request* req, rrr::ServerConnection* sconn) {
         std::vector<RequestHeader>* in_0 = new std::vector<RequestHeader>;
@@ -569,10 +599,13 @@ private:
             delete out_0;
         };
         rrr::DeferredReply* __defer__ = new rrr::DeferredReply(req, sconn, __marshal_reply__, __cleanup__);
-            
+    
+    #ifdef COROUTINE 
         auto f = boost::bind(&RococoService::rcc_batch_start_pie, this, _1, boost::ref(*in_0), boost::ref(*in_1), out_0, __defer__);
         rrr::Coroutine::mkcoroutine(f);
-        //this->rcc_batch_start_pie(*in_0, *in_1, out_0, __defer__);
+    #else
+        this->rcc_batch_start_pie(*in_0, *in_1, out_0, __defer__);
+    #endif
     }
     void __rpc_null__wrapper__(rrr::Request* req, rrr::ServerConnection* sconn) {
         auto __marshal_reply__ = [=] {
@@ -581,9 +614,12 @@ private:
         };
         rrr::DeferredReply* __defer__ = new rrr::DeferredReply(req, sconn, __marshal_reply__, __cleanup__);
         
+    #ifdef COROUTINE
         auto f = boost::bind(&RococoService::rpc_null, this, _1, __defer__);
         rrr::Coroutine::mkcoroutine(f);
-        //this->rpc_null(__defer__);
+    #else
+        this->rpc_null(__defer__);
+    #endif
     }
 };
 

@@ -354,7 +354,7 @@ class ClientController(object):
                 recording = " -r '" + self.recording_path + "/deptran_client_" + str(i) + "' "
                 cmd += "mkdir -p '" + self.recording_path + "'; "
             cmd += "cd " + deptran_home + "; " \
-                + " nohup " + self.taskset_func(i) + " ./cmakebuild/deptran_client " \
+                + " nohup " + self.taskset_func(i) + " ./build/deptran_client " \
                 + " -c " + str(i) \
                 + " -d " + str(self.duration) \
                 + " -f " + filename \
@@ -798,7 +798,7 @@ class ServerController(object):
                 recording = " -r '" + self.recording_path + "/deptran_server_" + str(i) + "' "
                 cmd += "mkdir -p '" + self.recording_path + "'; "
             cmd += "cd " + deptran_home + "; "
-            cmd += "nohup " + self.taskset_func(machine_no) + " ./cmakebuild/deptran_server " \
+            cmd += "nohup " + self.taskset_func(machine_no) + " ./build/deptran_server " \
                 + " -s " + str(i) \
                 + " -f " + filename \
                 + " -p " + self.s_info[i][1] \
