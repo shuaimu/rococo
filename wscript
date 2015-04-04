@@ -94,7 +94,7 @@ def build(bld):
                                        "rrr/event/*.cpp"), 
               target="rrr", 
               includes=". rrr", 
-              use="PTHREAD APR APR-UTIL")
+              use="PTHREAD APR APR-UTIL COROUTINE CONTEXT")
 
 #    bld.stlib(source=bld.path.ant_glob("rpc/*.cc"), target="simplerpc", 
 #              includes=". rrr rpc", 

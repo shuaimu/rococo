@@ -56,6 +56,9 @@ coro_f( RococoServiceImpl::batch_start_pie,
         const std::vector<Value>& input,
         rrr::i32* res,
         std::vector<Value>* output) {
+#ifdef COROUTINE
+    REG_CORO;
+#endif
 
     verify(0);
     RequestHeader header;
@@ -95,6 +98,10 @@ coro_f( RococoServiceImpl::naive_batch_start_pie,
         std::vector<i32> *results,
         std::vector<vector<Value>> *outputs,
         rrr::DeferredReply *defer) {
+#ifdef COROUTINE
+    REG_CORO;
+#endif
+
     std::lock_guard<std::mutex> guard(mtx_);
 
     verify(0);
@@ -136,7 +143,9 @@ coro_f( RococoServiceImpl::start_pie,
         rrr::i32* res,
         std::vector<mdb::Value>* output,
         rrr::DeferredReply* defer) {
+#ifdef COROUTINE
     REG_CORO;
+#endif
 
     std::lock_guard<std::mutex> guard(mtx_);
 
@@ -185,6 +194,10 @@ coro_f( RococoServiceImpl::prepare_txn,
         const std::vector<i32> &sids,
         rrr::i32* res,
         rrr::DeferredReply* defer) {
+#ifdef COROUTINE
+    REG_CORO;
+#endif
+
     // logging.
     // generate proper logging staff.
 
@@ -244,6 +257,9 @@ coro_f( RococoServiceImpl::commit_txn,
         const rrr::i64& tid,
         rrr::i32* res,
         rrr::DeferredReply* defer) {
+#ifdef COROUTINE
+    REG_CORO;
+#endif
 
     std::lock_guard<std::mutex> guard(mtx_);
     auto *dtxn = (TPLDTxn*)txn_mgr_->get(tid);
@@ -266,7 +282,10 @@ coro_f( RococoServiceImpl::abort_txn,
         const rrr::i64& tid,
         rrr::i32* res,
         rrr::DeferredReply* defer) {
-    
+#ifdef COROUTINE
+    REG_CORO;
+#endif
+
     std::lock_guard<std::mutex> guard(mtx_);
 
     Log::debug("get abort_txn: tid: %ld", tid);
@@ -300,6 +319,9 @@ coro_f( RococoServiceImpl::rcc_batch_start_pie,
         const std::vector<std::vector<Value>> &inputs,
         BatchChopStartResponse* res,
         rrr::DeferredReply* defer) {
+#ifdef COROUTINE
+    REG_CORO;
+#endif
 
     verify(IS_MODE_RCC || IS_MODE_RO6);
     auto txn = (RCCDTxn*) txn_mgr_->get_or_create(headers[0].tid);
@@ -347,6 +369,10 @@ coro_f( RococoServiceImpl::rcc_start_pie,
         const std::vector<Value> &input,
         ChopStartResponse* res,
         rrr::DeferredReply* defer) {
+#ifdef COROUTINE
+    REG_CORO;
+#endif
+
 //    Log::debug("receive start request. txn_id: %llx, pie_id: %llx", header.tid, header.pid);
     verify(IS_MODE_RCC || IS_MODE_RO6);
 
@@ -380,6 +406,9 @@ coro_f( RococoServiceImpl::rcc_finish_txn, // equivalent to commit phrase
         ChopFinishResponse* res,
         rrr::DeferredReply* defer) {
     std::lock_guard<std::mutex> guard(mtx_);
+#ifdef COROUTINE
+    REG_CORO;
+#endif
 
     //Log::debug("receive finish request. txn_id: %llx, graph size: %d", req.txn_id, req.gra.size());
 
@@ -402,6 +431,9 @@ coro_f( RococoServiceImpl::rcc_ask_txn,
         const rrr::i64& tid,
         CollectFinishResponse* res,
         rrr::DeferredReply* defer) {
+#ifdef COROUTINE
+    REG_CORO;
+#endif
 
     std::lock_guard<std::mutex> guard(mtx_);
 
@@ -436,6 +468,9 @@ coro_f( RococoServiceImpl::rcc_ro_start_pie,
         const vector<Value> &input,
         vector<Value> *output,
         rrr::DeferredReply *defer) {
+#ifdef COROUTINE
+    REG_CORO;
+#endif
     std::lock_guard<std::mutex> guard(mtx_);
 
     bool ro = true;
@@ -445,6 +480,9 @@ coro_f( RococoServiceImpl::rcc_ro_start_pie,
 }
 
 coro_f( RococoServiceImpl::rpc_null,rrr::DeferredReply* defer) {
+#ifdef COROUTINE
+    REG_CORO;
+#endif
     defer->reply();
 }
 

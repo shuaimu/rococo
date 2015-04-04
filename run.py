@@ -274,7 +274,7 @@ class TxnInfo(object):
         res = "RECORDING_RESULT: TXN: <" + self.txn_name + ">; STARTED_TXNS: " + start_txn + "; FINISHED_TXNS: " + total_txn + "; ATTEMPTS: " + tries + "; COMMITS: " + commit_txn + "; TPS: " + tps + latency_str + "; TIME: " + str(self.mid_time) + "; LATENCY MIN: " + str(min_latency) + "; LATENCY MAX: " + str(max_latency) + n_tried_str
         print res
         _file = open(self.recording_path, 'a')
-        _file.write(res + '\n')
+        _file.write("TXN: < "+ self.txn_name + ">; STARTED_TXNS: " + start_txn + "; FINISHED_TXNS: "+ total_txn + "; COMMITS: " + commit_txn + "; TPS: " + tps + "\n")
         _file.close()
 
 
@@ -301,7 +301,7 @@ class TxnInfo(object):
         res = "RECORDING_RESULT: TXN: <" + str(self.max_data[1]) + ">; STARTED_TXNS: " + str(self.max_data[2]) + "; FINISHED_TXNS: " + str(self.max_data[3]) + "; ATTEMPTS: " + str(self.max_data[4]) + "; COMMITS: " + str(self.max_data[5]) + "; TPS: " + str(self.max_data[6]) + latency_str + "; TIME: " + str(self.max_interval) + "; LATENCY MIN: " + str(self.max_data[7]) + "; LATENCY MAX: " + str(self.max_data[8]) + n_tried_str
         print res
         _file = open(self.recording_path, "a")
-        _file.write(res + '\n')
+        _file.write("TXN: <" + str(self.max_data[1]) + ">; STARTED_TXNS: " + str(self.max_data[2]) + "; FINISHED_TXNS: " + str(self.max_data[3]) + "; COMMITS: " + str(self.max_data[5]) + "; TPS: " + str(self.max_data[6]) + '\n')
         _file.close()
 
 class ClientController(object):
@@ -510,6 +510,11 @@ class ClientController(object):
                 #v.print_max()
                 v.print_mid(len(self.rpc_proxy))
 
+            global result_filename
+            _file = open(result_filename, 'a')
+            _file.write("\n");
+            _file.close();
+
         if (not self.recording_period):
             if (progress >= 20 and progress <= 60):
                 self.recording_period = True
@@ -565,6 +570,11 @@ class ClientController(object):
                 self.print_max = False
                 for k, v in self.txn_infos.items():
                     v.print_mid(len(self.rpc_proxy))
+
+                global result_filename
+                _file = open(result_filename, 'a')
+                _file.write("\n");
+                _file.close();
             return True
         else:
             return False
