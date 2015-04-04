@@ -35,6 +35,8 @@ g_max_try = 99999.9
 hosts_path_g = ""
 hosts_map_g = dict()
 
+result_filename = ""
+
 class TxnInfo(object):
     def __init__(self, txn_type, txn_name, interest):
         self.txn_type = txn_type
@@ -72,6 +74,9 @@ class TxnInfo(object):
         self.mid_attempt_latencies = []
         self.mid_n_try = []
 
+        global result_filename
+
+        self.recording_path = result_filename
     def set_mid_status(self):
         self.mid_status += 1
 
@@ -266,7 +271,12 @@ class TxnInfo(object):
                 n_tried_str += str(g_max_try)
             i += 1
 
-        print "RECORDING_RESULT: TXN: <" + self.txn_name + ">; STARTED_TXNS: " + start_txn + "; FINISHED_TXNS: " + total_txn + "; ATTEMPTS: " + tries + "; COMMITS: " + commit_txn + "; TPS: " + tps + latency_str + "; TIME: " + str(self.mid_time) + "; LATENCY MIN: " + str(min_latency) + "; LATENCY MAX: " + str(max_latency) + n_tried_str
+        res = "RECORDING_RESULT: TXN: <" + self.txn_name + ">; STARTED_TXNS: " + start_txn + "; FINISHED_TXNS: " + total_txn + "; ATTEMPTS: " + tries + "; COMMITS: " + commit_txn + "; TPS: " + tps + latency_str + "; TIME: " + str(self.mid_time) + "; LATENCY MIN: " + str(min_latency) + "; LATENCY MAX: " + str(max_latency) + n_tried_str
+        print res
+        _file = open(self.recording_path, 'a')
+        _file.write(res + '\n')
+        _file.close()
+
 
     def print_max(self):
         latency_str = ""
@@ -288,7 +298,11 @@ class TxnInfo(object):
             n_tried_str += "; " + l_str + ": " + str(self.max_data[9 + latency_size + att_latency_size + i])
             i += 1
 
-        print "RECORDING_RESULT: TXN: <" + str(self.max_data[1]) + ">; STARTED_TXNS: " + str(self.max_data[2]) + "; FINISHED_TXNS: " + str(self.max_data[3]) + "; ATTEMPTS: " + str(self.max_data[4]) + "; COMMITS: " + str(self.max_data[5]) + "; TPS: " + str(self.max_data[6]) + latency_str + "; TIME: " + str(self.max_interval) + "; LATENCY MIN: " + str(self.max_data[7]) + "; LATENCY MAX: " + str(self.max_data[8]) + n_tried_str
+        res = "RECORDING_RESULT: TXN: <" + str(self.max_data[1]) + ">; STARTED_TXNS: " + str(self.max_data[2]) + "; FINISHED_TXNS: " + str(self.max_data[3]) + "; ATTEMPTS: " + str(self.max_data[4]) + "; COMMITS: " + str(self.max_data[5]) + "; TPS: " + str(self.max_data[6]) + latency_str + "; TIME: " + str(self.max_interval) + "; LATENCY MIN: " + str(self.max_data[7]) + "; LATENCY MAX: " + str(self.max_data[8]) + n_tried_str
+        print res
+        _file = open(self.recording_path, "a")
+        _file.write(res + '\n')
+        _file.close()
 
 class ClientController(object):
     def __init__(self, benchmark, timeout, c_info, duration, 
@@ -853,6 +867,8 @@ def main():
                 help="interest txn", default=g_interest_txn, metavar="INTEREST_TXN")
         parser.add_option("-H", "--hosts", dest="hosts_path", help="hosts path", default="./config/hosts-local", metavar="HOSTS_PATH")
 
+        parser.add_option("-R", "--result", dest="result_filename", help="file to record result", default="./result.out", metavar="RESULT_FILENAME")
+
         (options, args) = parser.parse_args()
 
         s_timeout = int(options.s_timeout)
@@ -861,6 +877,10 @@ def main():
         c_single_server = int(options.c_single_server)
         s_taskset = int(options.s_taskset)
         c_taskset = options.c_taskset
+
+        global result_filename
+        result_filename = options.result_filename
+
         if (c_single_server not in [0, 1, 2]):
             print "Invalid single server argument"
             return False
