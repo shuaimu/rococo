@@ -200,5 +200,10 @@ int main(int argc, char *argv[]) {
     RandomGenerator::destroy();
     Config::destroy_config();
 
+#ifdef COROUTINE
+#ifdef COROUTINE_COUNT
+    rrr::Coroutine::report();
+#endif
+#endif
     return 0;
 }

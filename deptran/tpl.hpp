@@ -62,7 +62,11 @@ public:
             const std::vector<mdb::Value>& input,
             rrr::i32* res,
             std::vector<mdb::Value>* output,
+#ifdef COROUTINE
+            DballEvent *ev
+#else
             DragonBall *db
+#endif
     );
 
 
@@ -73,7 +77,11 @@ public:
             rrr::i32* res,
             mdb::Value* output,
             rrr::i32* output_size,
+#ifdef COROUTINE
+            DballEvent *ev
+#else
             DragonBall *db
+#endif
     );
 
     void execute(

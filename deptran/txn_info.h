@@ -73,9 +73,15 @@ public:
         for(auto& kv: events_) {
             if (kv.first <= status_) {
                 while (kv.second.size() > 0) {
+#ifdef COROUTINE
+                    DballEvent *ev = kv.second.back();
+                    kv.second.pop_back();
+                    ev->add();
+#else
                     DragonBall* ball = kv.second.back();        
                     kv.second.pop_back();
                     ball->trigger();
+#endif
                 }
             }
         }
@@ -92,6 +98,16 @@ public:
         }
     }
 
+#ifdef COROUTINE
+    void register_event(int8_t status, DballEvent* ev) {
+        if (status_ >= status) {
+            ev->add();
+        }
+        else {
+            events_[status].push_back(ev); 
+        }
+    }
+#else
     void register_event(int8_t status, DragonBall* ball) {
         if (status_ >= status) {
             ball->trigger();
@@ -100,12 +116,17 @@ public:
             events_[status].push_back(ball); 
         }
     }
+#endif
 
     // a simple simple state machine, don't have to marshal
     int32_t wait_finish_ = 0;
     int32_t wait_commit_ = 0;
 
+#ifdef  COROUTINE
+    std::map<int8_t, std::vector<DballEvent*> > events_;
+#else
     std::map<int8_t, std::vector<DragonBall*> > events_;
+#endif
 
 };
 

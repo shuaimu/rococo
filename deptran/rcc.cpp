@@ -122,13 +122,23 @@ void RCCDTxn::start_ro(
         defer->reply();
     };
     // wait for them become commit.
-
+#ifdef COROUTINE
+    DballEvent *ev = new DballEvent(rrr::Coroutine::get_ca(), conflict_txns.size() + 1);
+    for (auto tinfo: conflict_txns){
+        tinfo->register_event(TXN_DCD, ev);
+    }
+    ev->add();
+    WAIT(ev);
+    delete ev;
+    cb();
+#else
     DragonBall *ball = new DragonBall(conflict_txns.size() + 1, cb);
 
     for (auto tinfo: conflict_txns) {
         tinfo->register_event(TXN_DCD, ball);
     }
     ball->trigger();
+#endif
 }
 
 void RCCDTxn::commit(
@@ -232,7 +242,17 @@ void RCCDTxn::to_decide(
                 // wait for all ancestors of scc become DECIDED
                 std::set<Vertex<TxnInfo>* > scc_anc;
                 RCCDTxn::dep_s->find_txn_scc_nearest_anc(v, scc_anc);
-
+#ifdef COROUTINE
+                DballEvent *wait_commit_ev = new DballEvent(rrr::Coroutine::get_ca(), scc_anc.size() + 1);
+                for (auto &sav: scc_anc){
+                    sav->data_.register_event(TXN_DCD, wait_commit_ev);
+                    send_ask_req(sav);
+                }
+                wait_commit_ev->add();
+                WAIT(wait_commit_ev);
+                delete wait_commit_ev;
+                scc_anc_commit_cb();
+#else
                 DragonBall *wait_commit_ball = new DragonBall(scc_anc.size() + 1,
                         scc_anc_commit_cb);
                 for (auto &sav: scc_anc) {
@@ -242,12 +262,25 @@ void RCCDTxn::to_decide(
                     send_ask_req(sav);
                 }
                 wait_commit_ball->trigger();
+#endif
             };
 
     std::unordered_set<Vertex<TxnInfo>*> anc;
     RCCDTxn::dep_s->find_txn_anc_opt(v, anc);
 
+#ifdef COROUTINE
+    DballEvent *wait_finish_ev = new DballEvent(rrr::Coroutine::get_ca(), anc.size() + 1);
+    for (auto &av: anc) {
+        Log::debug("\t ancestor id: %llx", av->data_.id());
+        av->data_.register_event(TXN_CMT, wait_finish_ev);
+        send_ask_req(av);
+    }
+    wait_finish_ev->add();
+    WAIT(wait_finish_ev);
+    delete wait_finish_ev;
+    anc_finish_cb();
 
+#else
     DragonBall *wait_finish_ball = new DragonBall(anc.size() + 1, anc_finish_cb);
     for (auto &av: anc) {
         Log::debug("\t ancestor id: %llx", av->data_.id());
@@ -255,6 +288,7 @@ void RCCDTxn::to_decide(
         send_ask_req(av);
     }
     wait_finish_ball->trigger();
+#endif
 }
 
 void RCCDTxn::send_ask_req(Vertex<TxnInfo>* av) {
