@@ -1,5 +1,5 @@
 #include "all.h"
-
+#include "event/dballevent.hpp"
 namespace rococo {
 
 //int TPL::do_abort(i64 txn_id, rrr::DeferredReply* defer) {
@@ -252,7 +252,11 @@ void TPLDTxn::pre_execute_2pl(
         const std::vector<mdb::Value>& input,
         rrr::i32* res,
         std::vector<mdb::Value>* output,
+#ifdef COROUTINE
+        DballEvent *ev
+#else
         DragonBall *db
+#endif
 ) {
 
     verify(mdb_txn_ != nullptr);
@@ -260,10 +264,18 @@ void TPLDTxn::pre_execute_2pl(
     if (txn->is_wound()) {
         output->resize(0);
         *res = REJECT;
+#ifdef COROUTINE
+        ev->add();
+#else
         db->trigger();
+#endif
         return;
     }
+#ifdef COROUTINE
+    txn->init_piece(header.tid, header.pid, ev, output);
+#else
     txn->init_piece(header.tid, header.pid, db, output);
+#endif
 
     Log::debug("start reg lock");
     TxnRegistry::get(header).txn_handler(

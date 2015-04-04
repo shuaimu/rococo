@@ -352,7 +352,11 @@ void Txn2PL::PieceStatus::reg_rw_lock(const std::vector<column_lock_t> &col_lock
 }
 
 // insert piece in piece_map_, set reply dragonball & set output
+#ifdef COROUTINE
+void Txn2PL::init_piece(i64 tid, i64 pid, rrr::DballEvent *db,
+#else
 void Txn2PL::init_piece(i64 tid, i64 pid, rrr::DragonBall *db,
+#endif
         mdb::Value* output, 
         rrr::i32* output_size) {
     PieceStatus *ps = new PieceStatus(tid,
@@ -374,7 +378,11 @@ void Txn2PL::init_piece(i64 tid, i64 pid, rrr::DragonBall *db,
     ps_cache_ = ps;
 }
 
+#ifdef COROUTINE
+void Txn2PL::init_piece(i64 tid, i64 pid, rrr::DballEvent *db,
+#else
 void Txn2PL::init_piece(i64 tid, i64 pid, rrr::DragonBall *db,
+#endif
         std::vector<mdb::Value> *output) {
     PieceStatus *ps = new PieceStatus(tid,
             pid,

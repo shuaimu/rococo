@@ -10,6 +10,8 @@
 #include "utils.h"
 #include "value.h"
 
+#include "event/dballevent.hpp"
+
 namespace mdb {
 
 // forward declaration
@@ -366,7 +368,11 @@ public:
         int num_waiting_;
         int num_acquired_;
         bool rej_;
+#ifdef COROUTINE
+        rrr::DballEvent *reply_db_;
+#else
         rrr::DragonBall *reply_db_;
+#endif
         mdb::Value *output_buf_;
         rrr::i32 *output_size_buf_;
         std::vector<mdb::Value> *output_vec_;
@@ -392,7 +398,11 @@ public:
         }
 
     public:
+#ifdef COROUTINE
+        PieceStatus(i64 tid, i64 pid, rrr::DballEvent *db, mdb::Value *output,
+#else
         PieceStatus(i64 tid, i64 pid, rrr::DragonBall *db, mdb::Value *output,
+#endif
                 rrr::i32 *output_size, bool *wound,
                 const std::function<int(void)> &wound_callback) :
             pid_(pid),
@@ -411,8 +421,11 @@ public:
             is_rw_(false),
             wound_(wound) {
             }
-
+#ifdef COROUTINE
+        PieceStatus(i64 tid, i64 pid, rrr::DballEvent *db,
+#else
         PieceStatus(i64 tid, i64 pid, rrr::DragonBall *db,
+#endif
                 std::vector<mdb::Value> *output, bool *wound,
                 const std::function<int(void)> &wound_callback) :
             pid_(pid),
@@ -557,10 +570,17 @@ public:
     void abort();
     bool commit();
 
+#ifdef COROUTINE
+    void init_piece(i64 tid, i64 pid, rrr::DballEvent *db, mdb::Value* output,
+            rrr::i32* output_size);
+    void init_piece(i64 tid, i64 pid, rrr::DballEvent *db,
+            std::vector<mdb::Value> *output);
+#else
     void init_piece(i64 tid, i64 pid, rrr::DragonBall *db, mdb::Value* output,
             rrr::i32* output_size);
     void init_piece(i64 tid, i64 pid, rrr::DragonBall *db,
             std::vector<mdb::Value> *output);
+#endif
 
     PieceStatus *get_piece_status(i64 pid);
 

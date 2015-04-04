@@ -106,6 +106,12 @@ coro_f( RococoServiceImpl::naive_batch_start_pie,
 
     verify(0);
 
+#ifdef COROUTINE
+    DballEvent *defer_reply_ev = NULL;
+    if (IS_MODE_2PL){
+        defer_reply_ev = new DballEvent(rrr::Coroutine::get_ca(), headers.size());
+    }
+#else
     DragonBall *defer_reply_db = NULL;
     if (IS_MODE_2PL) {
         defer_reply_db = new DragonBall(headers.size(), [/*&headers, */defer/*, results*/]() {
@@ -115,6 +121,7 @@ coro_f( RococoServiceImpl::naive_batch_start_pie,
                 defer->reply();
                 });
     }
+#endif
     Log::debug("naive_batch_start_pie: tid: %ld", headers[0].tid);
     results->resize(headers.size());
     outputs->resize(headers.size());
@@ -122,17 +129,33 @@ coro_f( RococoServiceImpl::naive_batch_start_pie,
     for (int i = 0; i < num_pieces; i++) {
         (*outputs)[i].resize(output_sizes[i]);
         auto dtxn = (TPLDTxn *) txn_mgr_->get_or_create(headers[i].tid);
+#ifdef COROUTINE
+        if (defer_reply_ev) {
+            dtxn->pre_execute_2pl(headers[i], inputs[i],
+                    &((*results)[i]), &((*outputs)[i]), defer_reply_ev);
+        }
+#else
         if (defer_reply_db) {
             dtxn->pre_execute_2pl(headers[i], inputs[i],
                     &((*results)[i]), &((*outputs)[i]), defer_reply_db);
         }
+#endif
         else {
             dtxn->execute(headers[i], inputs[i],
                     &(*results)[i], &(*outputs)[i]);
         }
     }
+
+#ifdef COROUTINE
+    if (!defer_reply_ev)
+        defer->reply();
+    WAIT(defer_reply_ev);
+    delete defer_reply_ev;
+    defer->reply();
+#else
     if (!defer_reply_db)
         defer->reply();
+#endif
     Log::debug("still fine");
 }
 
@@ -171,10 +194,17 @@ coro_f( RococoServiceImpl::start_pie,
 
     if (IS_MODE_2PL) {
         verify(dtxn->mdb_txn_->rtti() == mdb::symbol_t::TXN_2PL);
+#ifdef COROUTINE
+        DballEvent *defer_reply_ev = new DballEvent(rrr::Coroutine::get_ca(), 1);
+        dtxn->pre_execute_2pl(header, input, res, output, defer_reply_ev);
+        WAIT(defer_reply_ev);
+        defer->reply();
+#else
         DragonBall *defer_reply_db = new DragonBall(1, [defer]() {
                 defer->reply();
                 });
         dtxn->pre_execute_2pl(header, input, res, output, defer_reply_db);
+#endif
 
     } else if (IS_MODE_NONE) {
         dtxn->execute(header, input, res, output);
@@ -331,7 +361,9 @@ coro_f( RococoServiceImpl::rcc_batch_start_pie,
     res->outputs.resize(headers.size());
 
     auto job = [&headers, &inputs, res, defer, this, txn] () {
+#ifndef COROUTINE
         std::lock_guard<std::mutex> guard(mtx_);
+#endif
 
         Log::debug("batch req, headers size:%u", headers.size());
         auto &tid = headers[0].tid;
@@ -378,7 +410,9 @@ coro_f( RococoServiceImpl::rcc_start_pie,
     verify(IS_MODE_RCC || IS_MODE_RO6);
 
     auto job = [&header, &input, res, defer, this] () {
+#ifndef COROUTINE
         std::lock_guard<std::mutex> guard(this->mtx_);
+#endif
         RCCDTxn* txn = (RCCDTxn*) txn_mgr_->get_or_create(header.tid);
         bool deferred;
         txn->start(header, input, &deferred, res);
@@ -406,9 +440,10 @@ coro_f( RococoServiceImpl::rcc_finish_txn, // equivalent to commit phrase
         const ChopFinishRequest& req,
         ChopFinishResponse* res,
         rrr::DeferredReply* defer) {
-    std::lock_guard<std::mutex> guard(mtx_);
 #ifdef COROUTINE
     REG_CORO;
+#else
+    std::lock_guard<std::mutex> guard(mtx_);
 #endif
 
     //Log::debug("receive finish request. txn_id: %llx, graph size: %d", req.txn_id, req.gra.size());
@@ -455,13 +490,21 @@ coro_f( RococoServiceImpl::rcc_ask_txn,
         defer->reply();
     };
 
-
+#ifdef COROUTINE
+    DballEvent *ev = new DballEvent(rrr::Coroutine::get_ca(), 2);
+    verify (v->data_.is_involved());
+    v->data_.register_event(TXN_CMT, ev);
+    ev->add();
+    WAIT(ev);
+    callback();
+#else
     DragonBall *ball = new DragonBall(2, callback);
 
     //register an event, triggered when the status >= COMMITTING;
     verify (v->data_.is_involved());
     v->data_.register_event(TXN_CMT, ball);
     ball->trigger();
+#endif
 }
 
 coro_f( RococoServiceImpl::rcc_ro_start_pie,
@@ -474,7 +517,7 @@ coro_f( RococoServiceImpl::rcc_ro_start_pie,
 #else
     std::lock_guard<std::mutex> guard(mtx_);
 #endif
-    
+
     bool ro = true;
     RCCDTxn* dtxn = (RCCDTxn*) txn_mgr_->get_or_create(header.tid, true);
 

@@ -141,14 +141,22 @@ void RO6DTxn::start_ro(
         defer->reply();
     };
     // wait for them become commit.
-
+#ifdef COROUTINE
+    DballEvent *ev = new DballEvent(rrr::Coroutine::get_ca(), conflict_txns.size() + 1);
+    for (auto tinfo:conflict_txns){
+        tinfo->register_event(TXN_DCD, ev);
+    }
+    ev->add();
+    WAIT(ev);
+    cb();
+#else
     DragonBall *ball = new DragonBall(conflict_txns.size() + 1, cb);
 
     for (auto tinfo: conflict_txns) {
         tinfo->register_event(TXN_DCD, ball);
     }
     ball->trigger();
-
+#endif
     // TODO: for Shuai, this does everything read transactions need in
     // start phase. See the comments to its declaration in dtxn.hpp
     // It needs txn_id, row, and column_id for this txn, please implement the
