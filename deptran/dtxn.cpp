@@ -50,7 +50,7 @@ mdb::Txn* DTxnMgr::get_mdb_txn(const i64 tid) {
     mdb::Txn *txn = nullptr;
     auto it = mdb_txns_.find(tid);
     if (it == mdb_txns_.end()) {
-        verify(IS_MODE_2PL);
+        //verify(IS_MODE_2PL);
         txn = mdb_txn_mgr_->start(tid);
         //XXX using occ lazy mode: increment version at commit time
         if (mode_ == MODE_OCC) {
@@ -66,6 +66,8 @@ mdb::Txn* DTxnMgr::get_mdb_txn(const i64 tid) {
     if (IS_MODE_2PL) {
         verify(mdb_txn_mgr_->rtti() == mdb::symbol_t::TXN_2PL);
         verify(txn->rtti() == mdb::symbol_t::TXN_2PL);
+    } else {
+            
     }
 
     verify(txn != nullptr);
@@ -223,6 +225,17 @@ DTxn::~DTxn() {
 
 }
 
+mdb::ResultSet DTxn::query_in(Table* tbl, const mdb::SortedMultiKey& low, const mdb::SortedMultiKey& high, mdb::symbol_t order) {
+    verify(mdb_txn_ != nullptr);
+    return mdb_txn_->query_in(tbl, low, high, order);
+}
+
+mdb::ResultSet DTxn::query_in(Table* tbl, const mdb::MultiBlob& low, const mdb::MultiBlob& high, bool retrieve, int64_t pid, mdb::symbol_t order) {
+    verify(mdb_txn_ != nullptr);
+    return mdb_txn_->query_in(tbl, low, high, retrieve, pid, order);
+}
+
+
 mdb::ResultSet DTxn::query(Table* tbl, const mdb::Value& kv) {
     verify(mdb_txn_ != nullptr);
     return mdb_txn_->query(tbl, kv);
@@ -247,6 +260,13 @@ bool DTxn::read_column(mdb::Row* row, mdb::column_id_t col_id, Value* value){
     verify(mdb_txn_ != nullptr);
     return mdb_txn_->read_column(row, col_id, value);
 }
+
+bool DTxn::read_columns(Row* row, const std::vector<column_id_t>& col_ids, std::vector<Value>* values) {
+    verify(mdb_txn_ != nullptr);
+    return mdb_txn_->read_columns(row, col_ids, values);
+}
+
+
 bool DTxn::write_column(Row* row, column_id_t col_id, const Value& value) {
     verify(mdb_txn_ != nullptr);
     return mdb_txn_->write_column(row, col_id, value);

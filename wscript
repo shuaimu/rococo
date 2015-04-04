@@ -66,6 +66,9 @@ def configure(conf):
     conf.env.append_value("CXXFLAGS", "-Wno-sign-compare")
     conf.env.LIB_PTHREAD = 'pthread'
 
+    conf.env.LIB_COROUTINE = "boost_coroutine"
+    conf.env.LIB_CONTEXT = "boost_context"
+
     if sys.platform != 'darwin':
         conf.env.LIB_RT = 'rt'
 
@@ -87,10 +90,11 @@ def build(bld):
 
     bld.stlib(source=bld.path.ant_glob("rrr/base/*.cpp "
                                        "rrr/misc/*.cpp "
-                                       "rrr/rpc/*.cpp"), 
+                                       "rrr/rpc/*.cpp "
+                                       "rrr/event/*.cpp"), 
               target="rrr", 
               includes=". rrr", 
-              use="PTHREAD APR APR-UTIL")
+              use="PTHREAD APR APR-UTIL COROUTINE CONTEXT")
 
 #    bld.stlib(source=bld.path.ant_glob("rpc/*.cc"), target="simplerpc", 
 #              includes=". rrr rpc", 
@@ -123,12 +127,12 @@ def build(bld):
     bld.program(source=bld.path.ant_glob("deptran/s_main.cc"), 
                 target="deptran_server", 
                 includes=". rrr bench deptran", 
-                use="rrr memdb deptran PTHREAD PROFILER RT")
+                use="rrr memdb deptran PTHREAD PROFILER RT COROUTINE CONTEXT")
 
     bld.program(source=bld.path.ant_glob("deptran/c_main.cc"), 
                 target="deptran_client", 
                 includes=". rrr bench deptran", 
-                use="rrr memdb deptran PTHREAD RT")
+                use="rrr memdb deptran PTHREAD RT COROUTINE CONTEXT")
 
 #    bld.program(source="test/rpcbench.cc test/benchmark_service.cc", 
 #                target="rpcbench", 
