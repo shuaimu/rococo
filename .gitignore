@@ -18,3 +18,4 @@ tmp_conf*.xml
 benchmark*.log
 log*
 .idea
+test.sh
