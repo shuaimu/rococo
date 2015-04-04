@@ -100,9 +100,9 @@ coro_f( RococoServiceImpl::naive_batch_start_pie,
         rrr::DeferredReply *defer) {
 #ifdef COROUTINE
     REG_CORO;
-#endif
-
+#else
     std::lock_guard<std::mutex> guard(mtx_);
+#endif
 
     verify(0);
 
@@ -145,9 +145,9 @@ coro_f( RococoServiceImpl::start_pie,
         rrr::DeferredReply* defer) {
 #ifdef COROUTINE
     REG_CORO;
-#endif
-
+#else
     std::lock_guard<std::mutex> guard(mtx_);
+#endif
 
 #ifdef PIECE_COUNT
     piece_count_key_t piece_count_key =
@@ -259,9 +259,10 @@ coro_f( RococoServiceImpl::commit_txn,
         rrr::DeferredReply* defer) {
 #ifdef COROUTINE
     REG_CORO;
+#else
+    std::lock_guard<std::mutex> guard(mtx_);
 #endif
 
-    std::lock_guard<std::mutex> guard(mtx_);
     auto *dtxn = (TPLDTxn*)txn_mgr_->get(tid);
     verify(dtxn != NULL);
     *res = dtxn->commit();
@@ -284,9 +285,9 @@ coro_f( RococoServiceImpl::abort_txn,
         rrr::DeferredReply* defer) {
 #ifdef COROUTINE
     REG_CORO;
-#endif
-
+#else
     std::lock_guard<std::mutex> guard(mtx_);
+#endif
 
     Log::debug("get abort_txn: tid: %ld", tid);
     //if (txn_mgr_->get_mode() != MODE_2PL) {
@@ -433,9 +434,9 @@ coro_f( RococoServiceImpl::rcc_ask_txn,
         rrr::DeferredReply* defer) {
 #ifdef COROUTINE
     REG_CORO;
-#endif
-
+#else
     std::lock_guard<std::mutex> guard(mtx_);
+#endif
 
     verify(IS_MODE_RCC || IS_MODE_RO6);
     Vertex<TxnInfo> *v = RCCDTxn::dep_s->txn_gra_.find(tid);
@@ -470,9 +471,10 @@ coro_f( RococoServiceImpl::rcc_ro_start_pie,
         rrr::DeferredReply *defer) {
 #ifdef COROUTINE
     REG_CORO;
-#endif
+#else
     std::lock_guard<std::mutex> guard(mtx_);
-
+#endif
+    
     bool ro = true;
     RCCDTxn* dtxn = (RCCDTxn*) txn_mgr_->get_or_create(header.tid, true);
 
