@@ -571,7 +571,7 @@ class ClientController(object):
                 for k, v in self.txn_infos.items():
                     v.print_mid(len(self.rpc_proxy))
 
-                global result_filename
+#                global result_filename
                 _file = open(result_filename, 'a')
                 _file.write("\n");
                 _file.close();

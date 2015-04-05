@@ -5,8 +5,13 @@
 #########################################################################
 #!/bin/bash
 
-cd cmakebuild
-make -j 8
-cd ..
+./waf configure
+./waf
 
-./run.py -f ../config.mcore.xml
+int=0
+while(($int<$1))
+do
+./run.py -f config.teaker.xml -H config/hosts-teaker
+let "int++"
+done
+
