@@ -74,8 +74,6 @@ class TxnInfo(object):
         self.mid_attempt_latencies = []
         self.mid_n_try = []
 
-        global result_filename
-
         self.recording_path = result_filename
     def set_mid_status(self):
         self.mid_status += 1
@@ -510,7 +508,6 @@ class ClientController(object):
                 #v.print_max()
                 v.print_mid(len(self.rpc_proxy))
 
-            global result_filename
             _file = open(result_filename, 'a')
             _file.write("\n");
             _file.close();
@@ -571,7 +568,6 @@ class ClientController(object):
                 for k, v in self.txn_infos.items():
                     v.print_mid(len(self.rpc_proxy))
 
-                global result_filename
                 _file = open(result_filename, 'a')
                 _file.write("\n");
                 _file.close();
@@ -888,7 +884,6 @@ def main():
         s_taskset = int(options.s_taskset)
         c_taskset = options.c_taskset
 
-        global result_filename
         result_filename = options.result_filename
 
         if (c_single_server not in [0, 1, 2]):
