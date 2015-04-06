@@ -134,8 +134,8 @@ def build(bld):
                 includes=". rrr bench deptran", 
                 use="rrr memdb deptran PTHREAD RT COROUTINE CONTEXT")
 
-    bld.program(source=bld.path.ant_glob("rrr/event/test.cpp"),
-                target="event_test",
+    bld.program(source=bld.path.ant_glob("rrr/event/testcase/test_scheduler.cpp"),
+                target="test_scheduler",
                 includes="rrr",
                 use="rrr COROUTINE CONTEXT"
                 )
