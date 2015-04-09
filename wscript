@@ -39,6 +39,7 @@ def configure(conf):
     _choose_compiler(conf)
     conf.load("compiler_cxx")
     conf.load("python")
+    conf.load("boost")
     conf.check_python_headers()
 
     _enable_tcmalloc(conf)
@@ -58,7 +59,7 @@ def configure(conf):
 
     conf.check_cfg(package='apr-1', uselib_store='APR', args=pargs)
     conf.check_cfg(package='apr-util-1', uselib_store='APR-UTIL', args=pargs)
-#    conf.check_cxx(lib='boost')
+    conf.check_boost()
 
     conf.env.append_value("CXXFLAGS", "-Wno-sign-compare")
     conf.env.append_value('INCLUDES', ['/usr/local/include'])
@@ -72,6 +73,8 @@ def configure(conf):
     if sys.platform != 'darwin':
         conf.env.LIB_RT = 'rt'
 
+    # check python modules
+    conf.check_python_module('tabulate')
 
 def build(bld):
     _depend("rrr/pylib/simplerpcgen/rpcgen.py", 
@@ -134,8 +137,8 @@ def build(bld):
                 includes=". rrr bench deptran", 
                 use="rrr memdb deptran PTHREAD RT COROUTINE CONTEXT")
 
-    bld.program(source=bld.path.ant_glob("rrr/event/test.cpp"),
-                target="event_test",
+    bld.program(source=bld.path.ant_glob("rrr/event/testcase/test_scheduler.cpp"),
+                target="test_scheduler",
                 includes="rrr",
                 use="rrr COROUTINE CONTEXT"
                 )
