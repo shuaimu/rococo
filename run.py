@@ -274,7 +274,7 @@ class TxnInfo(object):
         res = "RECORDING_RESULT: TXN: <" + self.txn_name + ">; STARTED_TXNS: " + start_txn + "; FINISHED_TXNS: " + total_txn + "; ATTEMPTS: " + tries + "; COMMITS: " + commit_txn + "; TPS: " + tps + latency_str + "; TIME: " + str(self.mid_time) + "; LATENCY MIN: " + str(min_latency) + "; LATENCY MAX: " + str(max_latency) + n_tried_str
         print res
         _file = open(self.recording_path, 'a')
-        _file.write("TXN: < "+ self.txn_name + ">; STARTED_TXNS: " + start_txn + "; FINISHED_TXNS: "+ total_txn + "; COMMITS: " + commit_txn + "; TPS: " + tps + "\n")
+        _file.write(tps +", ")
         _file.close()
 
 

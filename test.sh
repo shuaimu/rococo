@@ -5,13 +5,13 @@
 #########################################################################
 #!/bin/bash
 
-./waf configure
+./waf configure -t -p
 ./waf
 
 int=0
 while(($int<$1))
 do
-./run.py -f config.teaker.xml -H config/hosts-teaker
+./run.py -f config.teaker.xml -H config/hosts-teaker -T 2
 let "int++"
 done
 
