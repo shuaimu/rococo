@@ -279,7 +279,7 @@ class TxnInfo(object):
         res = "RECORDING_RESULT: TXN: <" + self.txn_name + ">; STARTED_TXNS: " + start_txn + "; FINISHED_TXNS: " + total_txn + "; ATTEMPTS: " + tries + "; COMMITS: " + commit_txn + "; TPS: " + tps + latency_str + "; TIME: " + str(self.mid_time) + "; LATENCY MIN: " + str(min_latency) + "; LATENCY MAX: " + str(max_latency) + n_tried_str
         print res
         _file = open(self.recording_path, 'a')
-        _file.write("TXN: < "+ self.txn_name + ">; STARTED_TXNS: " + start_txn + "; FINISHED_TXNS: "+ total_txn + "; COMMITS: " + commit_txn + "; TPS: " + tps + "\n")
+        _file.write(" " + tps)
         _file.close()
 
 
@@ -514,7 +514,7 @@ class ClientController(object):
             for k, v in self.txn_infos.items():
                 #v.print_max()
                 v.print_mid(len(self.rpc_proxy))
-
+    
             _file = open(result_filename, 'a')
             _file.write("\n");
             _file.close();
@@ -919,6 +919,7 @@ def main():
         s_taskset = int(options.s_taskset)
         c_taskset = options.c_taskset
 
+        global result_filename
         result_filename = options.result_filename
 
         if (c_single_server not in [0, 1, 2]):
