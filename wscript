@@ -33,6 +33,8 @@ def options(opt):
                    default=False, action='store_true')
     opt.add_option('-T', '--enable-txn-stat', dest='txn_stat', 
                    default=False, action='store_true')
+    opt.add_option('--coroutine', dest="coro", default=False, action="store_true")
+
     opt.parse_args();
 
 def configure(conf):
@@ -54,6 +56,7 @@ def configure(conf):
 #    _enable_snappy(conf)
     #_enable_logging(conf)
 
+    _enable_coroutine(conf)
 
     conf.env.append_value("CXXFLAGS", "-Wno-sign-compare")
 
@@ -236,6 +239,13 @@ def _enable_profile(conf):
         Logs.pprint("PINK", "CPU profiling enabled")
         conf.env.append_value("CXXFLAGS", "-DCPU_PROFILE")
         conf.env.LIB_PROFILER = 'profiler'
+
+def _enable_coroutine(conf):
+    if Options.options.coro:
+        Logs.pprint("PINK", "COROUTINE enabled")
+        conf.env.append_value("CXXFALGS", "-DCOROUTINE")
+        conf.env.append_value("CXXFALGS", "-DCOROUTINE_COUNT")
+
 
 def _enable_debug(conf):
     if Options.options.debug:
