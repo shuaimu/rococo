@@ -145,7 +145,7 @@ def build(bld):
                 includes="rrr",
                 use="rrr COROUTINE CONTEXT"
                 )
-
+    
 #    bld.program(source="test/rpcbench.cc test/benchmark_service.cc", 
 #                target="rpcbench", 
 #                includes=". rrr deptran test", 
@@ -243,8 +243,8 @@ def _enable_profile(conf):
 def _enable_coroutine(conf):
     if Options.options.coro:
         Logs.pprint("PINK", "COROUTINE enabled")
-        conf.env.append_value("CXXFALGS", "-DCOROUTINE")
-        conf.env.append_value("CXXFALGS", "-DCOROUTINE_COUNT")
+        conf.env.append_value("CXXFLAGS", "-DCOROUTINE")
+        conf.env.append_value("CXXFLAGS", "-DCOROUTINE_COUNT")
 
 
 def _enable_debug(conf):
