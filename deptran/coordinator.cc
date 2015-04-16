@@ -1,5 +1,6 @@
 #include "all.h"
 
+#include "event/event.hpp"
 /**
  * What shoud we do to change this to asynchronous?
  * 1. Fisrt we need to have a queue to hold all transaction requests.
@@ -108,7 +109,15 @@ void Coordinator::do_one(TxnRequest& req) {
                 else
                     start(ch);
             };
+#ifdef COROUTINE
+            Event* ev = new Event(rrr::Coroutine::get_ca());
+            recorder_->submit(log_s, ev);
+            WAIT(ev);
+            delete ev;
+            start_func();
+#else
             recorder_->submit(log_s, start_func);
+#endif
         }
         else {
             if (batch_optimal_)
@@ -131,7 +140,15 @@ void Coordinator::do_one(TxnRequest& req) {
                         deptran_start(ch);
                 }
             };
+#ifdef COROUTINE
+            Event* ev = new Event(rrr::Coroutine::get_ca());
+            recorder_->submit(log_s, ev);
+            WAIT(ev);
+            delete ev;
+            start_func();
+#else
             recorder_->submit(log_s, start_func);
+#endif
         } else {
             if (ch->is_read_only())
                 deptran_start_ro(ch);
@@ -148,6 +165,18 @@ void Coordinator::do_one(TxnRequest& req) {
         if (recorder_) {
                std::string log_s;
             req.get_log(ch->txn_id_, log_s);
+#ifdef COROUTINE
+            Event *ev = new Event(rrr::Coroutine::get_ca());
+            recorder_->submit(log_s, ev);
+            WAIT(ev);
+            delete ev;
+            if (ch->is_read_only()){
+                ro6_start_ro(ch);
+            }
+            else{
+                deptran_start(ch);
+            }
+#else
             std::function<void(void)> start_func = [this, ch] () {
                 if (ch->is_read_only())
                     ro6_start_ro(ch);
@@ -156,6 +185,7 @@ void Coordinator::do_one(TxnRequest& req) {
                 }
             };
             recorder_->submit(log_s, start_func);
+#endif
         } else {
             if (ch->is_read_only())
                 ro6_start_ro(ch);

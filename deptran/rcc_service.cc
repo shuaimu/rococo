@@ -240,7 +240,17 @@ coro_f( RococoServiceImpl::prepare_txn,
         };
 
         if (*res == SUCCESS)
+#ifdef COROUTINE
+        {
+            Event* ev = new Event(rrr::Coroutine::get_ca());
+            recorder_->submit(log_s, ev);
+            WAIT(ev);
+            delete ev;
+            job();
+        }
+#else
             recorder_->submit(log_s, job);
+#endif
         else
             defer->reply();
     } else {
@@ -390,8 +400,15 @@ coro_f( RococoServiceImpl::rcc_batch_start_pie,
     if (do_record) {
         rrr::Marshal m;
         m << headers << inputs;
-
+#ifdef COROUTINE
+        Event* ev = new Event(rrr::Coroutine::get_ca());
+        recorder_->submit(m, ev);
+        WAIT(ev);
+        delete ev;
+        job();
+#else
         recorder_->submit(m, job);
+#endif
     } else {
         job();
     }
@@ -430,7 +447,15 @@ coro_f( RococoServiceImpl::rcc_start_pie,
         Marshal m;
         m << header;
         m << input;
+#ifdef COROUTINE
+        Event* ev = new Event(rrr::Coroutine::get_ca());
+        recorder_->submit(m, ev);
+        WAIT(ev);
+        delete ev;
+        job();
+#else
         recorder_->submit(m, job);
+#endif
     } else {
         job();
     }
