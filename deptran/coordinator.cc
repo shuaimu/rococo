@@ -56,6 +56,7 @@ Coordinator::Coordinator(
         std::string log_path(Config::get_config()->log_path());
         log_path.append(std::to_string(coo_id_));
         recorder_ = new Recorder(log_path.c_str());
+
         rpc_poll_->add(recorder_);
     }
 
@@ -109,15 +110,8 @@ void Coordinator::do_one(TxnRequest& req) {
                 else
                     start(ch);
             };
-#ifdef COROUTINE
-            Event* ev = new Event(rrr::Coroutine::get_ca());
-            recorder_->submit(log_s, ev);
-            WAIT(ev);
-            delete ev;
-            start_func();
-#else
+
             recorder_->submit(log_s, start_func);
-#endif
         }
         else {
             if (batch_optimal_)
@@ -140,15 +134,9 @@ void Coordinator::do_one(TxnRequest& req) {
                         deptran_start(ch);
                 }
             };
-#ifdef COROUTINE
-            Event* ev = new Event(rrr::Coroutine::get_ca());
-            recorder_->submit(log_s, ev);
-            WAIT(ev);
-            delete ev;
-            start_func();
-#else
+
             recorder_->submit(log_s, start_func);
-#endif
+
         } else {
             if (ch->is_read_only())
                 deptran_start_ro(ch);
@@ -165,18 +153,7 @@ void Coordinator::do_one(TxnRequest& req) {
         if (recorder_) {
                std::string log_s;
             req.get_log(ch->txn_id_, log_s);
-#ifdef COROUTINE
-            Event *ev = new Event(rrr::Coroutine::get_ca());
-            recorder_->submit(log_s, ev);
-            WAIT(ev);
-            delete ev;
-            if (ch->is_read_only()){
-                ro6_start_ro(ch);
-            }
-            else{
-                deptran_start(ch);
-            }
-#else
+
             std::function<void(void)> start_func = [this, ch] () {
                 if (ch->is_read_only())
                     ro6_start_ro(ch);
@@ -185,7 +162,7 @@ void Coordinator::do_one(TxnRequest& req) {
                 }
             };
             recorder_->submit(log_s, start_func);
-#endif
+
         } else {
             if (ch->is_read_only())
                 ro6_start_ro(ch);
@@ -249,7 +226,6 @@ void Coordinator::start(TxnChopper* ch) {
                                  pi,
                                  header.p_type)) == 0) {
         header.pid = next_pie_id();
-
         rrr::FutureAttr fuattr;
         // remember this a asynchronous call!
         // variable funtional range is important!

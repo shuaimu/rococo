@@ -243,7 +243,7 @@ coro_f( RococoServiceImpl::prepare_txn,
 #ifdef COROUTINE
         {
             Event* ev = new Event(rrr::Coroutine::get_ca());
-            recorder_->submit(log_s, ev);
+            recorder_->submit_ev(log_s, ev);
             WAIT(ev);
             delete ev;
             job();
@@ -314,7 +314,11 @@ coro_f( RococoServiceImpl::commit_txn,
         log_s.resize(sizeof(tid) + sizeof(commit_tag));
         memcpy((void *)log_s.data(), (void *)&tid, sizeof(tid));
         memcpy((void *)log_s.data(), (void *)&commit_tag, sizeof(commit_tag));
+#ifdef COROUTINE
+        recorder_->submit_ev(log_s);
+#else
         recorder_->submit(log_s);
+#endif
     }
     defer->reply();
 }
@@ -348,7 +352,11 @@ coro_f( RococoServiceImpl::abort_txn,
         log_s.resize(sizeof(tid) + sizeof(abort_tag));
         memcpy((void *)log_s.data(), (void *)&tid, sizeof(tid));
         memcpy((void *)log_s.data(), (void *)&abort_tag, sizeof(abort_tag));
+#ifdef COROUTINE
+        recorder_->submit_ev(log_s);
+#else
         recorder_->submit(log_s);
+#endif
     }
     defer->reply();
     Log::debug("abort finish");
@@ -402,7 +410,7 @@ coro_f( RococoServiceImpl::rcc_batch_start_pie,
         m << headers << inputs;
 #ifdef COROUTINE
         Event* ev = new Event(rrr::Coroutine::get_ca());
-        recorder_->submit(m, ev);
+        recorder_->submit_ev(m, ev);
         WAIT(ev);
         delete ev;
         job();
@@ -449,7 +457,7 @@ coro_f( RococoServiceImpl::rcc_start_pie,
         m << input;
 #ifdef COROUTINE
         Event* ev = new Event(rrr::Coroutine::get_ca());
-        recorder_->submit(m, ev);
+        recorder_->submit_ev(m, ev);
         WAIT(ev);
         delete ev;
         job();
@@ -481,7 +489,11 @@ coro_f( RococoServiceImpl::rcc_finish_txn, // equivalent to commit phrase
     if (do_record) {
         Marshal m;
         m << req;
+#ifdef COROUTINE
+        recorder_->submit_ev(m);
+#else
         recorder_->submit(m);
+#endif
     }
 
     RCCDTxn* txn = (RCCDTxn*) txn_mgr_->get(req.txn_id);

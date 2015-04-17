@@ -30,6 +30,7 @@ void *coo_work(void *_attr) {
     rrr::CondVar finish_cond;
     //pthread_mutex_init(&finish_mutex, NULL);
     //pthread_cond_init(&finish_cond, NULL);
+
     if (ccsi != NULL) {
         std::function<void(TxnReply&)> callback = [coo_id, id, coo, ccsi,
 						   &callback, &finish_mutex,
@@ -38,6 +39,7 @@ void *coo_work(void *_attr) {
                 TxnRequest req;
                 TxnRequestFactory::init_txn_req(&req, coo_id);
                 req.callback_ = callback;
+        
                 coo->do_one(req);
             }
             else {
@@ -61,6 +63,7 @@ void *coo_work(void *_attr) {
             req.callback_ = callback;
             coo->do_one(req);
         }
+
         //pthread_mutex_lock(&finish_mutex);
         finish_mutex.lock();
         while (concurrent_txn > 0)
@@ -80,6 +83,7 @@ void *coo_work(void *_attr) {
                 TxnRequest req;
                 TxnRequestFactory::init_txn_req(&req, coo_id);
                 req.callback_ = callback;
+                Log_info("callback one time");
                 coo->do_one(req);
             }
             else {
@@ -106,6 +110,7 @@ void *coo_work(void *_attr) {
             req.callback_ = callback;
             coo->do_one(req);
         }
+
         while (concurrent_txn > 0)
             //pthread_cond_wait(&finish_cond, &finish_mutex);
             finish_cond.wait(finish_mutex);
@@ -122,6 +127,7 @@ void *coo_work(void *_attr) {
 }
 
 int main(int argc, char *argv[]) {
+
     int ret;
 
     if (0 != (ret = Config::create_config(argc, argv)))
@@ -197,5 +203,6 @@ int main(int argc, char *argv[]) {
     TxnRequestFactory::destroy();
     RandomGenerator::destroy();
     Config::destroy_config();
+
     return 0;
 }

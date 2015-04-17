@@ -163,6 +163,7 @@ int main(int argc, char *argv[]) {
         // start to profile
         ProfilerStart(prof_file);
 #endif
+        Log_info("scsi set ready");
         scsi->set_ready();
         scsi->wait_for_shutdown();
         delete hb_server;
