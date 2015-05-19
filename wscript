@@ -34,9 +34,10 @@ def options(opt):
     opt.add_option('-T', '--enable-txn-stat', dest='txn_stat', 
                    default=False, action='store_true')
     opt.add_option('--coroutine', dest="coro", default=False, action="store_true")
+    opt.add_option('--gprof', dest="gprof", action="store_true", default=False)
 
     opt.parse_args();
-
+    
 def configure(conf):
     _choose_compiler(conf)
     conf.load("compiler_cxx")
@@ -57,6 +58,7 @@ def configure(conf):
     #_enable_logging(conf)
 
     _enable_coroutine(conf)
+    _enable_gprof(conf)
 
     conf.env.append_value("CXXFLAGS", "-Wno-sign-compare")
 
@@ -241,7 +243,10 @@ def _enable_coroutine(conf):
         Logs.pprint("PINK", "COROUTINE enabled")
         conf.env.append_value("CXXFLAGS", "-DCOROUTINE")
         conf.env.append_value("CXXFLAGS", "-DCOROUTINE_COUNT")
-
+def _enable_gprof(conf):
+    if Options.options.gprof:
+        Logs.pprint("PINK", "gprof enabled")
+        conf.env.append_value("CXXFLAGS", "-pg")
 
 def _enable_debug(conf):
     if Options.options.debug:

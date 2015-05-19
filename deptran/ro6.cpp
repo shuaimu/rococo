@@ -142,7 +142,7 @@ void RO6DTxn::start_ro(
     };
     // wait for them become commit.
 #ifdef COROUTINE
-    DballEvent *ev = new DballEvent(rrr::Coroutine::get_ca(), conflict_txns.size() + 1);
+    DballEvent *ev = new DballEvent(GET_CP(), conflict_txns.size() + 1);
     for (auto tinfo:conflict_txns){
         tinfo->register_event(TXN_DCD, ev);
     }

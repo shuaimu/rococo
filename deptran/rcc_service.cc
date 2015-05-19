@@ -109,7 +109,7 @@ coro_f( RococoServiceImpl::naive_batch_start_pie,
 #ifdef COROUTINE
     DballEvent *defer_reply_ev = NULL;
     if (IS_MODE_2PL){
-        defer_reply_ev = new DballEvent(rrr::Coroutine::get_ca(), headers.size());
+        defer_reply_ev = new DballEvent(GET_CP(), headers.size());
     }
 #else
     DragonBall *defer_reply_db = NULL;
@@ -195,7 +195,7 @@ coro_f( RococoServiceImpl::start_pie,
     if (IS_MODE_2PL) {
         verify(dtxn->mdb_txn_->rtti() == mdb::symbol_t::TXN_2PL);
 #ifdef COROUTINE
-        DballEvent *defer_reply_ev = new DballEvent(rrr::Coroutine::get_ca(), 1);
+        DballEvent *defer_reply_ev = new DballEvent(GET_CP(), 1);
         dtxn->pre_execute_2pl(header, input, res, output, defer_reply_ev);
         WAIT(defer_reply_ev);
         defer->reply();
@@ -242,7 +242,7 @@ coro_f( RococoServiceImpl::prepare_txn,
         if (*res == SUCCESS)
 #ifdef COROUTINE
         {
-            Event* ev = new Event(rrr::Coroutine::get_ca());
+            Event* ev = new Event(GET_CP());
             recorder_->submit_ev(log_s, ev);
             WAIT(ev);
             delete ev;
@@ -409,7 +409,7 @@ coro_f( RococoServiceImpl::rcc_batch_start_pie,
         rrr::Marshal m;
         m << headers << inputs;
 #ifdef COROUTINE
-        Event* ev = new Event(rrr::Coroutine::get_ca());
+        Event* ev = new Event(GET_CP());
         recorder_->submit_ev(m, ev);
         WAIT(ev);
         delete ev;
@@ -456,7 +456,7 @@ coro_f( RococoServiceImpl::rcc_start_pie,
         m << header;
         m << input;
 #ifdef COROUTINE
-        Event* ev = new Event(rrr::Coroutine::get_ca());
+        Event* ev = new Event(GET_CP());
         recorder_->submit_ev(m, ev);
         WAIT(ev);
         delete ev;
@@ -528,7 +528,7 @@ coro_f( RococoServiceImpl::rcc_ask_txn,
     };
 
 #ifdef COROUTINE
-    DballEvent *ev = new DballEvent(rrr::Coroutine::get_ca(), 2);
+    DballEvent *ev = new DballEvent(GET_CP(), 2);
     verify (v->data_.is_involved());
     v->data_.register_event(TXN_CMT, ev);
     ev->add();
