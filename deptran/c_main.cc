@@ -127,7 +127,9 @@ void *coo_work(void *_attr) {
 }
 
 int main(int argc, char *argv[]) {
-
+    #ifdef COROUTINE
+        rrr::Coroutine::init();
+    #endif
     int ret;
 
     if (0 != (ret = Config::create_config(argc, argv)))
