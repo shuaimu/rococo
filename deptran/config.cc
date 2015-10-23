@@ -239,7 +239,6 @@ Config::Config(char           *ctrl_hostname,
 }
 
 void Config::Load() {
-
 //  Sharding::sharding_s = Frame().CreateSharding();
   for (auto &name: config_paths_) {
     if (boost::algorithm::ends_with(name, "xml")) {
@@ -261,6 +260,7 @@ void Config::LoadYML(std::string &filename) {
   YAML::Node config = YAML::LoadFile(filename);
 
 //  verify(Sharding::sharding_s);
+
 //  Sharding::sharding_s = new Sharding();
 
   if (config["site"]) {
