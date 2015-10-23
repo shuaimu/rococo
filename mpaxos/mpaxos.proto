@@ -1,0 +1,91 @@
+package mpaxos;
+
+enum MsgType {
+  PREPARE = 0;
+  PROMISE = 1;
+  ACCEPT = 2;
+  ACCEPTED = 3;
+  DECIDE = 4;
+  LEARN = 5;
+  TEACH = 6;
+  COMMIT = 7;
+  COMMAND = 8;
+}
+
+enum CmdType {
+  SET_MASTER = 0;
+}
+
+message MsgHeader {
+  required MsgType msg_type = 1;
+  required uint32 node_id = 2;
+  required uint64 slot_id = 3;
+}
+
+message PropValue {
+  required uint64 id = 1;
+  required string data = 2;
+  optional CmdType cmd_type = 3;
+  optional bool integrity = 4;
+}
+
+message MsgPrepare {
+  required MsgHeader msg_header = 1;
+  required uint64 ballot_id = 2;
+}
+
+message MsgAckPrepare {
+  required MsgHeader msg_header = 1;
+  required uint64 ballot_id = 2;
+  required bool reply = 3;
+  required uint64 max_ballot_id = 4;
+  optional PropValue max_prop_value = 5;
+}
+
+message MsgAccept {
+  required MsgHeader msg_header = 1;
+  required uint64 ballot_id = 2;
+  required PropValue prop_value = 3;
+}
+
+message MsgAckAccept {
+  required MsgHeader msg_header = 1;
+  required uint64 ballot_id = 2;
+  required bool reply = 3;
+}
+
+message MsgDecide {
+  required MsgHeader msg_header = 1;
+  required uint64 value_id = 2;
+}
+
+message MsgLearn {
+  required MsgHeader msg_header = 1;
+}
+
+message MsgTeach {
+  required MsgHeader msg_header = 1;
+  required PropValue prop_value = 2;
+}
+
+message MsgCommit {
+  required MsgHeader msg_header = 1;
+  required PropValue prop_value = 2;
+}
+
+message MsgCommand {
+  required MsgHeader msg_header = 1;
+  required CmdType cmd_type = 2;
+}
+
+message MsgPeriodTryTime {
+  required float percent = 1;
+  required uint32 period = 2;
+  required uint32 exe_period = 3;
+  required uint32 try_time = 4;
+}
+
+message MsgResult {
+  required uint32 throughput = 1;
+  repeated MsgPeriodTryTime msg_ptt = 2;
+}

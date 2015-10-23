@@ -1,0 +1,9 @@
+/**
+ * rs_encoder.hpp
+ * Author: Lijing Wang
+ * Date: 9/20/2015
+ */
+
+#pragma once
+namespace mpaxos {
+} // namespace mpaxos
