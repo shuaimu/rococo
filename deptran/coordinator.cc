@@ -187,18 +187,18 @@ void Coordinator::Start() {
   req.cmd_id = cmd_id_;
   Command *subcmd;
   phase_t phase = phase_;
+
   std::function<void(StartReply &)> callback = [this, phase](StartReply &reply) {
     this->StartAck(reply, phase);
+    delete reply.cmd;
   };
+
   while ((subcmd = cmd_->GetNextSubCmd(cmd_map_)) != nullptr) {
     req.pie_id = next_pie_id();
     Log_debug("send out start request, "
                   "cmd_id: %lx, inn_id: %d, pie_id: %lx",
               cmd_id_, subcmd->inn_id_, req.pie_id);
-    verify(cmd_map_.find(subcmd->inn_id_) == cmd_map_.end());
-//    auto &cmd = cmd_map_[subcmd->inn_id_];
-//    verify(cmd == nullptr);
-    cmd_map_[subcmd->inn_id_] = subcmd;
+    // this command is passed back to the callback function -- free it there
     req.cmd = subcmd;
     commo_->SendStart(subcmd->GetPar(), req, this, callback);
   }
