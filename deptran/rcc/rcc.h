@@ -1,10 +1,10 @@
 #pragma once
-
+#include "dtxn.h"
 
 #define PHASE_RCC_START (1)
 #define PHASE_RCC_COMMIT (2)
 
-//namespace rococo {
+namespace rococo {
 class RCCDTxn: public DTxn {
  public:
 
@@ -14,7 +14,7 @@ class RCCDTxn: public DTxn {
     row_map_t row_map;
   } DeferredRequest;
 
-  static DepGraph *dep_s;
+  DepGraph *dep_s;
 
   std::vector <DeferredRequest> dreqs_;
   Vertex <TxnInfo> *tv_;
@@ -141,4 +141,4 @@ class RCCDTxn: public DTxn {
 //            mdb::Row* row
 //    );
 };
-//} // namespace rococo
+} // namespace rococo

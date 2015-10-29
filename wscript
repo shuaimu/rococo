@@ -12,6 +12,7 @@ pargs = ['--cflags', '--libs']
 
 def options(opt):
     opt.load("compiler_cxx unittest_gtest")
+    opt.load('protoc', tooldir=['waf-tools'])
     #opt.load("eclipse")
     opt.add_option('-g', '--use-gxx', dest='cxx',
                    default=False, action='store_true')
@@ -33,6 +34,10 @@ def options(opt):
                    default=False, action='store_true')
     opt.add_option('-T', '--enable-txn-stat', dest='txn_stat',
                    default=False, action='store_true')
+    opt.add_option('-m', '--mode', dest="mode", 
+                   default='', help='mode type', action='store')
+    opt.add_option('-l', '--log', dest="log", 
+                   default='', help='log level', action='store')
     opt.parse_args();
 
 def configure(conf):
@@ -41,6 +46,7 @@ def configure(conf):
     conf.load("compiler_cxx unittest_gtest")
     conf.load("python")
     conf.load("boost")
+    conf.load('protoc')
     conf.check_python_headers()
 
     _enable_tcmalloc(conf)
@@ -51,6 +57,8 @@ def configure(conf):
     _enable_piece_count(conf)
     _enable_txn_count(conf)
     _enable_conflict_count(conf)
+    _enable_log(conf)       #log level
+    _enable_mode(conf)      #mode type 
 #    _enable_snappy(conf)
     #_enable_logging(conf)
 
@@ -63,6 +71,7 @@ def configure(conf):
 
     conf.env.LIB_PTHREAD = 'pthread'
 
+    conf.check_cfg(package='libzmq', uselib_store='ZMQ', args=pargs)
     conf.check_cfg(package='yaml-cpp', uselib_store='YAML-CPP', args=pargs)
 
     if sys.platform != 'darwin':
@@ -70,6 +79,10 @@ def configure(conf):
 
     # check python modules
     conf.check_python_module('tabulate')
+
+    USED_BOOST_LIBS = ['system', 'filesystem', 'date_time', 'iostreams', 'thread',
+                      'regex', 'program_options', 'chrono', 'random']
+    conf.check_boost(lib=USED_BOOST_LIBS, mandatory=True)
 
 def build(bld):
     _depend("rrr/pylib/simplerpcgen/rpcgen.py",
@@ -119,7 +132,7 @@ def build(bld):
     bld.program(source=bld.path.ant_glob("test/*.cc"),
                 target="run_tests",
                 features="gtest",
-                includes=". rrr bench deptran deptran/ro6 "
+                includes=". rrr deptran deptran/ro6 "
                          "deptran/rcc deptran/tpl "
                          "deptran/brq deptran/none "
                          "test memdb",
@@ -128,7 +141,7 @@ def build(bld):
 
     bld.program(source=bld.path.ant_glob("deptran/s_main.cc"),
                 target="deptran_server",
-                includes=". rrr bench deptran deptran/none "
+                includes=". rrr deptran deptran/none "
                          "deptran/ro6 deptran/rcc deptran/tpl deptran/brq",
                 uselib="BOOST BOOST_SYSTEM",
                 use="rrr memdb deptran YAML-CPP PTHREAD PROFILER RT")
@@ -165,6 +178,26 @@ def build(bld):
               target="deptran",
               includes=". rrr memdb bench deptran deptran/ro6 deptran/rcc deptran/tpl deptran/brq deptran/none",
               use="PTHREAD base simplerpc memdb")
+
+    os.system('protoc -I=mpaxos --python_out=script mpaxos/mpaxos.proto')
+    bld.stlib(source=bld.path.ant_glob([
+                                        'mpaxos/view.cpp', 'mpaxos/proposer.cpp', 'mpaxos/acceptor.cpp', 
+                                        'mpaxos/captain.cpp', 'mpaxos/commo.cpp', 'mpaxos/*.proto',
+                                        'libzfec/fec.cc']), 
+              target="mpaxos",
+              includes="mpaxos libzfec",
+              use="BOOST PROTOBUF ZMQ YAML-CPP",
+              install_path="${PREFIX}/lib")
+
+    for app in bld.path.ant_glob('loli_test/*.cpp'):
+        bld(features=['cxx', 'cxxprogram'],
+            source = app,
+            target = '%s' % (str(app.change_ext('','.cpp'))),
+            #cxxflags = ['-std=c++0x'],
+            includes="mpaxos libzfec", 
+            use="mpaxos",
+            ) 
+
 
 #
 # waf helper functions
@@ -267,3 +300,40 @@ def _depend(target, source, action):
 def _run_cmd(cmd):
     Logs.pprint('PINK', cmd)
     os.system(cmd)
+
+def _enable_log(conf):
+    if Options.options.log == 'trace':
+        Logs.pprint("PINK", "Log level set to trace")
+        conf.env.append_value("CFLAGS", "-DLOG_LEVEL=6")
+        conf.env.append_value("CXXFLAGS", "-DLOG_LEVEL=6")
+    elif Options.options.log == 'debug':
+        Logs.pprint("PINK", "Log level set to debug")
+        conf.env.append_value("CFLAGS", "-DLOG_LEVEL=5")
+        conf.env.append_value("CXXFLAGS", "-DLOG_LEVEL=5")
+    elif Options.options.log == 'info':
+        Logs.pprint("PINK", "Log level set to info")
+        conf.env.append_value("CFLAGS", "-DLOG_LEVEL=4")
+        conf.env.append_value("CXXFLAGS", "-DLOG_LEVEL=4")
+    elif Options.options.log == '':
+        pass
+    else:
+        Logs.pprint("PINK", "unsupported log level")
+#    if os.getenv("DEBUG") == "1":
+
+def _enable_mode(conf):
+    if Options.options.mode == 'RS':
+        Logs.pprint("PINK", "Mode type set to RS")
+        conf.env.append_value("CFLAGS", "-DMODE_TYPE=1")
+        conf.env.append_value("CXXFLAGS", "-DMODE_TYPE=1")
+    elif Options.options.mode == 'E':
+        Logs.pprint("PINK", "Mode type set to Epaxos")
+        conf.env.append_value("CFLAGS", "-DMODE_TYPE=2")
+        conf.env.append_value("CXXFLAGS", "-DMODE_TYPE=2")
+    elif Options.options.mode == 'RSII':
+        Logs.pprint("PINK", "Mode type set to RSII")
+        conf.env.append_value("CFLAGS", "-DMODE_TYPE=3")
+        conf.env.append_value("CXXFLAGS", "-DMODE_TYPE=3")
+    elif Options.options.mode == '':
+        pass
+    else:
+        Logs.pprint("PINK", "unsupported Mode type")

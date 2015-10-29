@@ -4,42 +4,44 @@
 #include "txn_req_factory.h"
 
 // for tpca benchmark
-#include "tpca/piece.h"
-#include "tpca/chopper.h"
+#include "bench/tpca/piece.h"
+#include "bench/tpca/chopper.h"
 
 // tpcc benchmark
-#include "tpcc/piece.h"
-#include "tpcc/chopper.h"
+#include "bench/tpcc/piece.h"
+#include "bench/tpcc/chopper.h"
 
 // tpcc dist partition benchmark
-#include "tpcc_dist/piece.h"
-#include "tpcc_dist/chopper.h"
+#include "bench/tpcc_dist/piece.h"
+#include "bench/tpcc_dist/chopper.h"
 
 // tpcc real dist partition benchmark
-#include "tpcc_real_dist/piece.h"
-#include "tpcc_real_dist/chopper.h"
+#include "bench/tpcc_real_dist/piece.h"
+#include "bench/tpcc_real_dist/chopper.h"
 
 // rw benchmark
-#include "rw_benchmark/piece.h"
-#include "rw_benchmark/chopper.h"
+#include "bench/rw_benchmark/piece.h"
+#include "bench/rw_benchmark/chopper.h"
 
 // micro bench
-#include "micro/piece.h"
-#include "micro/chopper.h"
+#include "bench/micro/piece.h"
+#include "bench/micro/chopper.h"
 
 #include "txn-chopper-factory.h"
 
 namespace rococo {
 
-TxnRequestFactory *TxnRequestFactory::txn_req_factory_s = NULL;
+//TxnRequestFactory *TxnRequestFactory::txn_req_factory_s = NULL;
 
-TxnRequestFactory::TxnRequestFactory() : txn_weight_(Config::GetConfig()->get_txn_weight()) {
+TxnRequestFactory::TxnRequestFactory(Sharding* sd)
+    : txn_weight_(Config::GetConfig()->get_txn_weight()),
+      sharding_(sd){
   benchmark_ = Config::GetConfig()->get_benchmark();
   n_try_ = Config::GetConfig()->get_max_retry();
   single_server_ = Config::GetConfig()->get_single_server();
 
   std::map<std::string, uint64_t> table_num_rows;
-  Sharding::get_number_rows(table_num_rows);
+  sharding_->get_number_rows(table_num_rows);
 
   switch (benchmark_) {
     case MICRO_BENCH:
@@ -62,9 +64,9 @@ TxnRequestFactory::TxnRequestFactory() : txn_weight_(Config::GetConfig()->get_tx
                      && tpca_para_.n_branch_ == tpca_para_.n_customer_);
           fix_id_ = RandomGenerator::rand(0, tpca_para_.n_branch_ - 1);
           unsigned int b, t, c;
-          Sharding::get_site_id(TPCA_BRANCH, Value(fix_id_), b);
-          Sharding::get_site_id(TPCA_TELLER, Value(fix_id_), t);
-          Sharding::get_site_id(TPCA_CUSTOMER, Value(fix_id_), c);
+          sharding_->get_site_id_from_tb(TPCA_BRANCH, Value(fix_id_), b);
+          sharding_->get_site_id_from_tb(TPCA_TELLER, Value(fix_id_), t);
+          sharding_->get_site_id_from_tb(TPCA_CUSTOMER, Value(fix_id_), c);
           verify(b == c && c == t);
           break;
         }
@@ -75,7 +77,7 @@ TxnRequestFactory::TxnRequestFactory() : txn_weight_(Config::GetConfig()->get_tx
     case TPCC:
     case TPCC_DIST_PART: {
       std::vector<unsigned int> sites;
-      Sharding::get_site_id(TPCC_TB_WAREHOUSE, sites);
+      sharding_->get_site_id_from_tb(TPCC_TB_WAREHOUSE, sites);
       uint64_t tb_w_rows = table_num_rows[std::string(TPCC_TB_WAREHOUSE)];
       tpcc_para_.n_w_id_ = (int) tb_w_rows * sites.size();
       tpcc_para_.const_home_w_id_ = RandomGenerator::rand(0, tpcc_para_.n_w_id_ - 1);
@@ -94,7 +96,7 @@ TxnRequestFactory::TxnRequestFactory() : txn_weight_(Config::GetConfig()->get_tx
     }
     case TPCC_REAL_DIST_PART: {
       std::vector<unsigned int> sites;
-      Sharding::get_site_id(TPCC_TB_WAREHOUSE, sites);
+      sharding_->get_site_id_from_tb(TPCC_TB_WAREHOUSE, sites);
       uint64_t tb_w_rows = table_num_rows[std::string(TPCC_TB_WAREHOUSE)];
       tpcc_para_.n_w_id_ = (int) tb_w_rows;
       tpcc_para_.const_home_w_id_ = RandomGenerator::rand(0, tpcc_para_.n_w_id_ - 1);
@@ -416,7 +418,7 @@ void TxnRequestFactory::get_txn_req(TxnRequest *req, uint32_t cid) const {
 
 void TxnRequestFactory::get_txn_types(std::map<int32_t, std::string> &txn_types) {
   txn_types.clear();
-  switch (txn_req_factory_s->benchmark_) {
+  switch (benchmark_) {
     case TPCA:
       txn_types[TPCA_PAYMENT] = std::string(TPCA_PAYMENT_NAME);
       break;
@@ -442,20 +444,20 @@ void TxnRequestFactory::get_txn_types(std::map<int32_t, std::string> &txn_types)
       verify(0);
   }
 }
-
-void TxnRequestFactory::init_txn_req(TxnRequest *req, uint32_t cid) {
-  if (txn_req_factory_s == NULL)
-    txn_req_factory_s = new TxnRequestFactory();
-  if (req)
-    return txn_req_factory_s->get_txn_req(req, cid);
-}
-
-void TxnRequestFactory::destroy() {
-  if (txn_req_factory_s != NULL) {
-    delete txn_req_factory_s;
-    txn_req_factory_s = NULL;
-  }
-}
+//
+//void TxnRequestFactory::init_txn_req(TxnRequest *req, uint32_t cid) {
+//  if (txn_req_factory_s == NULL)
+//    txn_req_factory_s = new TxnRequestFactory();
+//  if (req)
+//    return txn_req_factory_s->get_txn_req(req, cid);
+//}
+//
+//void TxnRequestFactory::destroy() {
+//  if (txn_req_factory_s != NULL) {
+//    delete txn_req_factory_s;
+//    txn_req_factory_s = NULL;
+//  }
+//}
 
 TxnRequestFactory::~TxnRequestFactory() {
 }

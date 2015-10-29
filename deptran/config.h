@@ -6,6 +6,7 @@
 
 namespace rococo {
 
+class Sharding;
 
 class Config {
  public:
@@ -132,10 +133,11 @@ class Config {
   vector<vector<string>> par_clients_;
   map<string, string> proc_host_map_;
 
+  Sharding* sharding_;
 
  protected:
 
-  Config();
+  Config() = default;
 
   Config(char *ctrl_hostname,
          uint32_t ctrl_port,

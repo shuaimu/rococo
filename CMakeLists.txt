@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 2.8.4)
 project(rococo)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Weffc++")
+
+
 
 find_package(Threads)
 find_package(PkgConfig REQUIRED)
@@ -28,13 +32,13 @@ include_directories(
     deptran/ro6
     deptran/brq
     deptran/none
-    bench
-    bench/micro
-    bench/rw_benchmark
-    bench/tpca
-    bench/tpcc
-    bench/tpcc_dist
-    bench/tpcc_real_dist
+#    bench
+#    bench/micro
+#    bench/rw_benchmark
+#    bench/tpca
+#    bench/tpcc
+#    bench/tpcc_dist
+#    bench/tpcc_real_dist
 )
 
 link_directories(

@@ -1,5 +1,7 @@
 #include "all.h"
 
+#include "bench/tpcc_real_dist/sharding.h"
+
 namespace rococo {
 
 void TpccPiece::reg_payment() {
@@ -152,12 +154,13 @@ void TpccPiece::reg_payment() {
         Value c_id_low(std::numeric_limits<i32>::min()), c_id_high(std::numeric_limits<i32>::max());
         mbl[2] = c_id_low.get_blob();
         mbh[2] = c_id_high.get_blob();
-        c_last_id_t key_low(input[0].get_str(), mbl, &g_c_last_schema);
-        c_last_id_t key_high(input[0].get_str(), mbh, &g_c_last_schema);
+
+        c_last_id_t key_low(input[0].get_str(), mbl, &C_LAST_SCHEMA);
+        c_last_id_t key_high(input[0].get_str(), mbh, &C_LAST_SCHEMA);
         std::multimap<c_last_id_t, rrr::i32>::iterator it, it_low, it_high, it_mid;
         bool inc = false, mid_set = false;
-        it_low = g_c_last2id.lower_bound(key_low);
-        it_high = g_c_last2id.upper_bound(key_high);
+        it_low = C_LAST2ID.lower_bound(key_low);
+        it_high = C_LAST2ID.upper_bound(key_high);
         int n_c = 0;
         for (it = it_low; it != it_high; it++) {
             n_c++;
@@ -333,7 +336,8 @@ void TpccPiece::reg_payment() {
         TPL_KISS_NONE;
 
         i32 output_index = 0;
-        mdb::Txn *txn = DTxnMgr::get_sole_mgr()->get_mdb_txn(header);
+//        mdb::Txn *txn = DTxnMgr::get_sole_mgr()->get_mdb_txn(header);
+                           mdb::Txn *txn = dtxn->mdb_txn_;
         mdb::Table *tbl = txn->get_table(TPCC_TB_HISTORY);
 
         // insert history

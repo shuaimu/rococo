@@ -7,30 +7,32 @@
 #include "multi_value.h"
 #include "sharding.h"
 #include "piece.h"
+#include "frame.h"
+#include "sharding.h"
 
 // for tpca benchmark
-#include "tpca/piece.h"
-#include "tpca/chopper.h"
+#include "bench/tpca/piece.h"
+#include "bench/tpca/chopper.h"
 
 // tpcc benchmark
-#include "tpcc/piece.h"
-#include "tpcc/chopper.h"
+#include "bench/tpcc/piece.h"
+#include "bench/tpcc/chopper.h"
 
 // tpcc dist partition benchmark
-#include "tpcc_dist/piece.h"
-#include "tpcc_dist/chopper.h"
+#include "bench/tpcc_dist/piece.h"
+#include "bench/tpcc_dist/chopper.h"
 
 // tpcc real dist partition benchmark
-#include "tpcc_real_dist/piece.h"
-#include "tpcc_real_dist/chopper.h"
+#include "bench/tpcc_real_dist/piece.h"
+#include "bench/tpcc_real_dist/chopper.h"
 
 // rw benchmark
-#include "rw_benchmark/piece.h"
-#include "rw_benchmark/chopper.h"
+#include "bench/rw_benchmark/piece.h"
+#include "bench/rw_benchmark/chopper.h"
 
 // micro bench
-#include "micro/piece.h"
-#include "micro/chopper.h"
+#include "bench/micro/piece.h"
+#include "bench/micro/chopper.h"
 
 
 
@@ -212,7 +214,7 @@ void Config::DestroyConfig() {
   }
 }
 
-Config::Config() {}
+//Config::Config() {}
 
 Config::Config(char           *ctrl_hostname,
                uint32_t        ctrl_port,
@@ -233,12 +235,43 @@ Config::Config(char           *ctrl_hostname,
   heart_beat_(heart_beat),
   single_server_(single_server),
   logging_path_(logging_path),
-  retry_wait_(false) {
+  retry_wait_(false),
+  next_site_id_(0),
+  site_infos_(map<string, SiteInfo*>()),
+  par_servers_(vector<vector<string>>()),
+  par_clients_(vector<vector<string>>()),
+  proc_host_map_(map<string, string>()),
+  sharding_(nullptr),
+  config_paths_(vector<string>()),
+  mode_(0),
+  proc_id_(0),
+  benchmark_(0),
+  scale_factor_(1),
+  txn_weight_(vector<double>()),
+  txn_weights_(map<string, double>()),
+  proc_name_(string()),
+  batch_start_(false),
+  early_return_(false),
+  concurrent_txn_(1),
+  max_retry_(1),
+  num_site_(0),
+  start_coordinator_id_(0),
+  site_(vector<string>()),
+  site_threads_(vector<uint32_t>()),
+  num_coordinator_threads_(1),
+  sid_(1),
+  cid_(1),
+  server_or_client_(1)
+{
+
+  uint32_t num_coordinator_threads_;
+  uint32_t sid_;
+  uint32_t cid_;
+  uint32_t server_or_client_;
 
 }
 
 void Config::Load() {
-  Sharding::sharding_s = new Sharding();
   for (auto &name: config_paths_) {
     if (boost::algorithm::ends_with(name, "xml")) {
       LoadXML(name);
@@ -258,7 +291,8 @@ void Config::LoadYML(std::string &filename) {
 
   YAML::Node config = YAML::LoadFile(filename);
 
-  verify(Sharding::sharding_s);
+//  verify(Sharding::sharding_s);
+
 //  Sharding::sharding_s = new Sharding();
 
   if (config["site"]) {
@@ -409,7 +443,7 @@ void Config::LoadXML(std::string &filename) {
     filename_str,
     pt,
     boost::property_tree::xml_parser::no_concat_text);
-  verify(Sharding::sharding_s);
+  verify(sharding_);
   // parse every table and its column
 //  LoadModeXML(pt);
 //  LoadTopoXML(pt);
@@ -444,12 +478,13 @@ void Config::LoadBenchYML(YAML::Node config) {
   txn_weight_.push_back(txn_weights_["delivery"]);
   txn_weight_.push_back(txn_weights_["stock_level"]);
 //  this->InitTPCCD();
+  sharding_ = Frame().CreateSharding();
 }
 
 void Config::InitTPCCD() {
 
   // TODO particular configuration for certain workloads.
-  auto &tb_infos = Sharding::sharding_s->tb_info_;
+  auto &tb_infos = sharding_->tb_infos_;
   if (benchmark_ == TPCC_REAL_DIST_PART) {
     i32 n_w_id =
         (i32)(tb_infos[std::string(TPCC_TB_WAREHOUSE)].num_records);
@@ -460,11 +495,9 @@ void Config::InitTPCCD() {
 
     for (d_id = 0; d_id < n_d_id; d_id++)
       for (w_id = 0; w_id < n_w_id; w_id++) {
-        MultiValue mv(std::vector<Value>({
-                                             Value(d_id),
-                                             Value(w_id)
-                                         }));
-        Sharding::sharding_s->insert_dist_mapping(mv);
+        MultiValue mv(std::vector<Value>({Value(d_id),
+                                          Value(w_id)}));
+        sharding_->insert_dist_mapping(mv);
       }
     i32 n_i_id =
         (i32)(tb_infos[std::string(TPCC_TB_ITEM)].num_records);
@@ -476,7 +509,7 @@ void Config::InitTPCCD() {
                                              Value(i_id),
                                              Value(w_id)
                                          }));
-        Sharding::sharding_s->insert_stock_mapping(mv);
+        sharding_->insert_stock_mapping(mv);
       }
   }
 }
@@ -626,8 +659,8 @@ void Config::LoadSchemeXML(boost::property_tree::ptree &pt) {
     if (value.first == "table") {
       std::string tb_name = value.second.get<std::string>("<xmlattr>.name");
 
-      if (Sharding::sharding_s->tb_info_.find(tb_name) !=
-          Sharding::sharding_s->tb_info_.end()) verify(0);
+      if (sharding_->tb_infos_.find(tb_name) !=
+          sharding_->tb_infos_.end()) verify(0);
       std::string method =
         value.second.get<std::string>("<xmlattr>.shard_method");
       uint64_t records = value.second.get<uint64_t>("<xmlattr>.records");
@@ -680,53 +713,37 @@ void Config::LoadSchemeXML(boost::property_tree::ptree &pt) {
             column.second.get<std::string>("<xmlattr>.foreign", "");
           Sharding::column_t  *foreign_key_column = NULL;
           Sharding::tb_info_t *foreign_key_tb     = NULL;
-
-          if (c_foreign.size() > 0) {
+          std::string ftbl_name;
+          std::string fcol_name;
+          bool is_foreign = (c_foreign.size() > 0);
+          if (is_foreign) {
             size_t pos = c_foreign.find('.');
             verify(pos != std::string::npos);
 
-            std::string foreign_tb = c_foreign.substr(0, pos);
+            ftbl_name = c_foreign.substr(0, pos);
+            fcol_name = c_foreign.substr(pos + 1);
             verify(c_foreign.size() > pos + 1);
-            std::string foreign_column = c_foreign.substr(pos + 1);
-
-            std::map<std::string,
-                     Sharding::tb_info_t>::iterator ftb_it =
-              Sharding::sharding_s->tb_info_.find(foreign_tb);
-            verify(ftb_it != Sharding::sharding_s->tb_info_.end());
-            foreign_key_tb = &(ftb_it->second);
-
-            std::vector<Sharding::column_t>::iterator fc_it =
-              ftb_it->second.columns.begin();
-
-            for (; fc_it != ftb_it->second.columns.end(); fc_it++)
-              if (fc_it->name == foreign_column) {
-                verify(fc_it->type == c_v_type);
-
-                if ((fc_it->values == NULL) &&
-                    (server_or_client_ ==
-                     0)) fc_it->values = new std::vector<Value>();
-                foreign_key_column = &(*fc_it);
-                break;
-              }
-            verify(fc_it != ftb_it->second.columns.end());
           }
-          tb_info.columns.push_back(Sharding::column_t(c_v_type, c_name,
+          tb_info.columns.push_back(Sharding::column_t(c_v_type,
+                                                       c_name,
                                                        c_primary,
-                                                       foreign_key_tb,
-                                                       foreign_key_column));
+                                                       is_foreign,
+                                                       ftbl_name,
+                                                       fcol_name));
         }
       }
 
-      tb_info.tb_name                         = tb_name;
-      Sharding::sharding_s->tb_info_[tb_name] = tb_info;
+      tb_info.tb_name = tb_name;
+      sharding_->tb_infos_[tb_name] = tb_info;
     }
   }
+  sharding_->BuildTableInfoPtr();
 }
 
 Config::~Config() {
-  if (Sharding::sharding_s) {
-    delete Sharding::sharding_s;
-    Sharding::sharding_s = NULL;
+  if (sharding_) {
+    delete sharding_;
+    sharding_ = NULL;
   }
 
   if (ctrl_hostname_) {
@@ -751,10 +768,12 @@ Config::~Config() {
 }
 
 unsigned int Config::get_site_id() {
+  verify(0);
   return sid_;
 }
 
 unsigned int Config::get_client_id() {
+  verify(0);
   return cid_;
 }
 

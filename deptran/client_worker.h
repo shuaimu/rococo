@@ -1,16 +1,15 @@
 #pragma once
 
 #include "all.h"
-#include "rcc_coord.h"
-#include "ro6_coord.h"
-#include "none_coord.h"
+
 
 namespace rococo {
 
+class ClientControlServiceImpl;
+class TxnRequestFactory;
 
-
-
-struct ClientWorker {
+class ClientWorker {
+ public:
   uint32_t coo_id;
   std::vector<std::string> *servers;
   int32_t benchmark;
@@ -24,38 +23,12 @@ struct ClientWorker {
   rrr::CondVar finish_cond;
   Coordinator *coo_;
   std::atomic<uint32_t> num_txn, success, num_try;
+  TxnRequestFactory* txn_req_factory_;
+  Timer *timer_;
+ public:
+  ClientWorker() = default;
 
-  Coordinator* GetCoord() {
-    if (coo_) return coo_;
-    auto attr = this;
-    switch (mode) {
-      case MODE_2PL:
-      case MODE_OCC:
-      case MODE_RPC_NULL:
-        coo_ = new Coordinator(coo_id, *(attr->servers),
-                              attr->benchmark, attr->mode,
-                              ccsi, id, attr->batch_start);
-        break;
-      case MODE_RCC:
-        coo_ = new RCCCoord(coo_id, *(attr->servers),
-                           attr->benchmark, attr->mode,
-                           ccsi, id, attr->batch_start);
-        break;
-      case MODE_RO6:
-        coo_ = new RO6Coord(coo_id, *(attr->servers),
-                           attr->benchmark, attr->mode,
-                           ccsi, id, attr->batch_start);
-        break;
-      case MODE_NONE:
-        coo_ = new NoneCoord(coo_id, *(attr->servers),
-                            attr->benchmark, attr->mode,
-                            ccsi, id, attr->batch_start);
-        break;
-      default:
-        verify(0);
-    }
-    return coo_;
-  }
+  Coordinator* GetCoord();
 
   void callback2(TxnReply &txn_reply);
 

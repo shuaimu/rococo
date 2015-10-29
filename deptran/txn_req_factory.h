@@ -45,8 +45,10 @@ class TxnRequestFactory {
   int single_server_;
   int fix_id_;
   std::vector<double> &txn_weight_;
+  Sharding* sharding_;
 
-  TxnRequestFactory();
+ public:
+  TxnRequestFactory(Sharding* sd);
 
   void get_txn_req(TxnRequest *req, uint32_t cid) const;
 
@@ -74,13 +76,7 @@ class TxnRequestFactory {
   void get_micro_bench_read_req(TxnRequest *req, uint32_t cid) const;
   void get_micro_bench_write_req(TxnRequest *req, uint32_t cid) const;
   void get_micro_bench_txn_req(TxnRequest *req, uint32_t cid) const;
-
-  static TxnRequestFactory *txn_req_factory_s;
-
- public:
-  static void get_txn_types(std::map<int32_t, std::string> &txn_types);
-  static void init_txn_req(TxnRequest *req, uint32_t cid);
-  static void destroy();
+  void get_txn_types(std::map<int32_t, std::string> &txn_types);
 
   ~TxnRequestFactory();
 };

@@ -1,22 +1,26 @@
 #pragma once
 
 #include "__dep__.h"
+#include "tpl.h"
+#include "ro6.h"
 
 namespace rococo {
 
+class TxnRegistry;
+
 class Piece {
  public:
+  Sharding* sss_ = nullptr;
+  TxnRegistry *txn_reg_ = nullptr;
   static Piece *get_piece(int benchmark);
-
   virtual void reg_all() = 0;
-
   virtual ~Piece() { }
 };
 
 
 #define BEGIN_PIE(txn, pie, iod) \
-    TxnRegistry::reg(txn, pie, iod, \
-        [] (DTxn *dtxn, \
+  txn_reg_->reg(txn, pie, iod, \
+        [this] (DTxn *dtxn, \
             const RequestHeader &header, \
             const Value *input, \
             i32 input_size, \
@@ -74,7 +78,7 @@ class Piece {
     }
 
 #define CREATE_ROW(schema, row_data) \
-    switch (DTxnMgr::get_sole_mgr()->get_mode()) { \
+    switch (Config::config_s->mode_) { \
     case MODE_2PL: \
         r = mdb::FineLockedRow::create(schema, row_data); \
         break; \
@@ -91,5 +95,15 @@ class Piece {
     default: \
         verify(0); \
     }
+
+
+#define IN_PHASE_1 (dtxn->phase_ == 1)
+#define TPL_PHASE_1 (output_size == nullptr)
+#define RO6_RO_PHASE_1 ((Config::GetConfig()->get_mode() == MODE_RO6) && ((RO6DTxn*)dtxn)->read_only_ && dtxn->phase_ == 1)
+
+
+#define C_LAST_SCHEMA (((TPCCDSharding*)(this->sss_))->g_c_last_schema)
+
+#define C_LAST2ID (((TPCCDSharding*)(this->sss_))->g_c_last2id)
 
 } // namespace rcc

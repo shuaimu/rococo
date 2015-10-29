@@ -1,4 +1,5 @@
 #include "all.h"
+#include "dtxn_mgr.h"
 
 namespace rococo {
 
@@ -44,12 +45,11 @@ int TPLDTxn::start_launch(
     const rrr::i32 &output_size,
     rrr::i32 *res,
     std::vector<mdb::Value> *output,
-    rrr::DeferredReply *defer
-) {
+    rrr::DeferredReply *defer) {
   if (IS_MODE_2PL) {
     verify(this->mdb_txn_->rtti() == mdb::symbol_t::TXN_2PL);
     DragonBall *defer_reply_db = new DragonBall(1, [defer, res]() {
-      auto r = *res;
+//      auto r = *res;
       defer->reply();
     });
     this->pre_execute_2pl(header, input, res, output, defer_reply_db);
@@ -89,9 +89,9 @@ int TPLDTxn::prepare_launch(
 }
 
 int TPLDTxn::prepare() {
-  auto txn = DTxnMgr::get_sole_mgr()->get_mdb_txn(tid_);
+  auto txn = mdb_txn_;
   verify(txn != NULL);
-  switch (DTxnMgr::get_sole_mgr()->get_mode()) {
+  switch (Config::config_s->mode_) {
     case MODE_OCC:
       if (((mdb::TxnOCC *) txn)->commit_prepare())
         return SUCCESS;
@@ -183,7 +183,8 @@ std::function<void(void)> TPLDTxn::get_2pl_succ_callback(
     Log_debug("lock acquired call back, txn_id: %lx, pie_id: %lx, p_type: %d, ",
                header.tid, header.pid, header.p_type);
     Log_debug("succ 1 callback: PS: %p", ps);
-    verify(ps != NULL); //FIXME
+    verify(ps != NULL);
+//    ((mdb::Txn2PL*)this->mdb_txn_)->ps_cache_ = ps;
     ps->start_yes_callback();
     Log_debug("tid: %lx, pid: %lx, p_type: %d, get lock",
                header.tid, header.pid, header.p_type);
@@ -206,13 +207,13 @@ std::function<void(void)> TPLDTxn::get_2pl_succ_callback(
 
         if (output_vec != NULL) {
           rrr::i32 output_vec_size = output_vec->size();
-          TxnRegistry::get(header).txn_handler(this, header, input,
+          txn_reg_->get(header).txn_handler(this, header, input,
                                                input_size, res, output_vec->data(),
                                                &output_vec_size, NULL);
           output_vec->resize(output_vec_size);
         }
         else {
-          TxnRegistry::get(header).txn_handler(this, header, input,
+          txn_reg_->get(header).txn_handler(this, header, input,
                                                input_size, res, output, output_size, NULL);
         }
       }
@@ -229,10 +230,10 @@ std::function<void(void)> TPLDTxn::get_2pl_proceed_callback(
     rrr::i32 input_size,
     rrr::i32 *res) {
   return [header, input, input_size, res, this]() {
-    Log::debug("tid: %ld, pid: %ld, p_type: %d, no lock",
+    Log_debug("tid: %ld, pid: %ld, p_type: %d, no lock",
                header.tid, header.pid, header.p_type);
 //        verify(this->mdb_txn_ != nullptr);
-    mdb::Txn2PL *mdb_txn = (mdb::Txn2PL *) DTxnMgr::get_sole_mgr()->get_mdb_txn(header);
+    mdb::Txn2PL *mdb_txn = (mdb::Txn2PL *) mdb_txn_;
     mdb::Txn2PL::PieceStatus *ps = mdb_txn->get_piece_status(header.pid);
 
     verify(ps != NULL); //FIXME
@@ -252,13 +253,13 @@ std::function<void(void)> TPLDTxn::get_2pl_proceed_callback(
 
       if (output_vec != NULL) {
         rrr::i32 output_vec_size = output_vec->size();
-        TxnRegistry::get(header).txn_handler(this, header, input,
+        txn_reg_->get(header).txn_handler(this, header, input,
                                              input_size, res, output_vec->data(),
                                              &output_vec_size, NULL);
         output_vec->resize(output_vec_size);
       }
       else {
-        TxnRegistry::get(header).txn_handler(this, header, input,
+        txn_reg_->get(header).txn_handler(this, header, input,
                                              input_size, res, output, output_size, NULL);
       }
     }
@@ -272,12 +273,13 @@ std::function<void(void)> TPLDTxn::get_2pl_fail_callback(
     const RequestHeader &header,
     rrr::i32 *res,
     mdb::Txn2PL::PieceStatus *ps) {
-  return [header, res, ps]() {
-    Log::debug("tid: %ld, pid: %ld, p_type: %d, lock timeout call back",
+  return [header, res, ps, this]() {
+    Log_debug("tid: %ld, pid: %ld, p_type: %d, lock timeout call back",
                header.tid, header.pid, header.p_type);
     //PieceStatus *ps = TPL::get_piece_status(header);
     Log::debug("fail callback: PS: %p", ps);
     verify(ps != NULL); //FIXME
+//    ((mdb::Txn2PL*)this->mdb_txn_)->ps_cache_ = ps;
     ps->start_no_callback();
 
     if (ps->can_proceed()) {
@@ -347,23 +349,17 @@ void TPLDTxn::pre_execute_2pl(
     output->resize(0);
     *res = REJECT;
     db->trigger();
-    verify(0);
+//    verify(0);
     return;
   }
   txn->init_piece(header.tid, header.pid, db, output);
 
   Log_debug("get txn handler and start reg lock, txn_id: %lx, pie_id: %lx",
             header.tid, header.pid);
-  TxnRegistry::get(header).txn_handler(
-      this,
-      header,
-      input.data(),
-      input.size(),
-      res,
-      NULL/*output*/,
-      NULL/*output_size*/,
-      NULL
-  );
+  auto entry = txn_reg_->get(header);
+  entry.txn_handler(this, header, input.data(),
+                    input.size(), res, NULL/*output*/,
+                    NULL/*output_size*/, NULL);
 }
 
 //void TPLDTxn::pre_execute_2pl(

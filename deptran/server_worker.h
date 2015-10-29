@@ -26,21 +26,15 @@ class ServerWorker {
   base::ThreadPool *hb_thread_pool_g;
 
   Config::SiteInfo *site_info_;
-//  Sharding *sharding_;
-
-  static void server_reg_piece() {
-    auto benchmark = Config::GetConfig()->get_benchmark();
-    Piece *piece = Piece::get_piece(benchmark);
-    piece->reg_all();
-    delete piece;
-    piece = NULL;
-  }
+  Sharding *sharding_;
+  DTxnMgr* txn_mgr_;
+  TxnRegistry *txn_reg_;
 
   void SetupHeartbeat();
-
   void PopTable();
-
   void SetupService();
+  void RegPiece();
+  void ShutDown();
 };
 
 

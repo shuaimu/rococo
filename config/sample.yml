@@ -42,7 +42,7 @@ host:
   localhost: 127.0.0.1
 
 mode:
-  cc: 2pl # concurrency control
+  cc: 2pl_ww # concurrency control
   read_only: occ
   batch: false
   retry: 0

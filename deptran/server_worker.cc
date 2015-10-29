@@ -3,6 +3,8 @@
 #include "rcc_service.h"
 #include "benchmark_control_rpc.h"
 #include "sharding.h"
+#include "dtxn_mgr.h"
+#include "frame.h"
 
 
 namespace rococo {
@@ -37,17 +39,19 @@ void ServerWorker::PopTable() {
 
   // TODO this needs to be done before poping table
   int running_mode = Config::GetConfig()->get_mode();
-  DTxnMgr *mgr     = new DTxnMgr(running_mode);
+  verify(txn_reg_);
+  txn_mgr_ = Frame().CreateDTxnMgr();
+  txn_mgr_->txn_reg_ = txn_reg_;
+  sharding_->dtxn_mgr_ = txn_mgr_;
 
   // populate table
-  auto sid = Config::GetConfig()->get_site_id();
   auto par_id = site_info_->par_id;
   int ret = 0;
 
   // get all tables
   std::vector<std::string> table_names;
 
-  ret = Sharding::get_table_names(sid, table_names);
+  ret = sharding_->get_table_names(site_info_->id, table_names);
   verify(ret > 0);
 
   std::vector<std::string>::iterator table_it = table_names.begin();
@@ -55,7 +59,7 @@ void ServerWorker::PopTable() {
   for (; table_it != table_names.end(); table_it++) {
     mdb::Schema *schema = new mdb::Schema();
     mdb::symbol_t symbol;
-    Sharding::init_schema(*table_it, schema, &symbol);
+    sharding_->init_schema(*table_it, schema, &symbol);
     mdb::Table *tb;
     switch (symbol) {
       case mdb::TBL_SORTED:
@@ -70,12 +74,28 @@ void ServerWorker::PopTable() {
       default:
         verify(0);
     }
-    DTxnMgr::get_sole_mgr()->reg_table(*table_it, tb);
+    txn_mgr_->reg_table(*table_it, tb);
   }
-  Sharding::populate_table(table_names, sid);
-  Log_info("Site %d data populated", sid);
+  verify(sharding_);
+  sharding_->PopulateTable(site_info_->id);
+  Log_info("Site %d data populated", site_info_->id);
   verify(ret > 0);
 }
+
+void ServerWorker::RegPiece() {
+  auto benchmark = Config::GetConfig()->get_benchmark();
+  Piece *piece = Piece::get_piece(benchmark);
+  verify(!txn_reg_);
+  txn_reg_ = new TxnRegistry();
+  verify(sharding_);
+  piece->sss_ = sharding_;
+  piece->txn_reg_ = txn_reg_;
+  piece->reg_all();
+  // TODO fix the memory leak without hurting sharding.
+//    delete piece;
+//    piece = NULL;
+}
+
 
 void ServerWorker::SetupService() {
   int ret;
@@ -87,7 +107,7 @@ void ServerWorker::SetupService() {
 //  }
 
   // init service implement
-  rsi_g = new RococoServiceImpl(DTxnMgr::get_sole_mgr(), scsi_g);
+  rsi_g = new RococoServiceImpl(txn_mgr_, scsi_g);
 
   // init rrr::PollMgr 1 threads
   int n_io_threads = 1;
@@ -177,14 +197,17 @@ void ServerWorker::SetupService() {
   Log::info("asking other server finish request count: %d",
             ((DepTranServiceImpl *) rsi_g)->n_asking_);
 
-  // TODO move this to somewhere else
-//  delete svr_server_g;
-//  delete rsi_g;
-//  thread_pool_g->release();
-//  svr_poll_mgr_g->release();
+}
+
+void ServerWorker::ShutDown() {
+
+  // TODO
+  delete svr_server_g;
+  delete rsi_g;
+  thread_pool_g->release();
+  svr_poll_mgr_g->release();
 //  delete DTxnMgr::get_sole_mgr();
 //  RandomGenerator::destroy();
 //  Config::DestroyConfig();
 }
-
 } // namespace rococo

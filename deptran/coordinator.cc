@@ -1,5 +1,7 @@
 #include "marshal-value.h"
 #include "coordinator.h"
+#include "frame.h"
+#include "sharding.h"
 #include "txn_req_factory.h"
 #include "txn-chopper-factory.h"
 #include "benchmark_control_rpc.h"
@@ -33,7 +35,9 @@ Coordinator::Coordinator(uint32_t coo_id,
                                                site_prepare_(addrs.size(), 0),
                                                site_commit_(addrs.size(), 0),
                                                site_abort_(addrs.size(), 0),
-                                               site_piece_(addrs.size(), 0) {
+                                               site_piece_(addrs.size(), 0),
+                                               mtx_(),
+                                               start_mtx_() {
   uint64_t k = coo_id_;
 
   k <<= 32;
@@ -68,7 +72,7 @@ BatchRequestHeader Coordinator::gen_batch_header(TxnChopper *ch) {
 void Coordinator::do_one(TxnRequest &req) {
   // pre-process
   ScopedLock(this->mtx_);
-  TxnChopper *ch = TxnChopperFactory::gen_chopper(req, benchmark_);
+  TxnChopper *ch = Frame().CreateChopper(req);
   cmd_ = ch;
   cmd_id_ = this->next_txn_id();
   cleanup(); // In case of reuse.
@@ -154,6 +158,7 @@ void Coordinator::restart(TxnChopper *ch) {
 }
 
 void Coordinator::Start() {
+  std::lock_guard<std::mutex> lock(start_mtx_);
   StartRequest req;
   req.cmd_id = cmd_id_;
   Command* subcmd;
@@ -185,17 +190,24 @@ bool Coordinator::AllStartAckCollected() {
 void Coordinator::StartAck(StartReply &reply, const phase_t &phase) {
   ScopedLock(this->mtx_);
   if (phase != phase_) return;
+
+  TxnChopper *ch = (TxnChopper *)cmd_;
+  ch->n_started_++; // TODO replace this
+  ch->n_start_sent_--;
+
   Log_debug("get start ack for cmd_id: %lx, inn_id: %d",
             cmd_id_, reply.cmd->inn_id_);
   start_ack_map_[reply.cmd->inn_id_] = true;
   if (reply.res == REJECT) {
-    phase_++; 
-//    groups_ = cmd_.GetGroups();
-    Abort(); 
+    ch->commit_.store(false);
+  }
+  if (!ch->commit_.load()) {
+    if (ch->n_start_sent_ == 0) {
+      phase_++;
+      this->Finish();
+    }
   } else {
     cmd_->Merge(*reply.cmd);
-    TxnChopper *ch = (TxnChopper *)cmd_;
-    ch->n_started_++; // TODO replace this
     if (cmd_->HasMoreSubCmd(cmd_map_)) {
       Log_debug("command has more sub-cmd, cmd_id: %lx,"
                     " n_started_: %d, n_pieces: %d",

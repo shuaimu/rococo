@@ -3,6 +3,7 @@
 # include <google/profiler.h>
 #endif // ifdef CPU_PROFILE
 
+#include "frame.h"
 #include "client_worker.h"
 
 using namespace rococo;
@@ -14,9 +15,12 @@ static ClientControlServiceImpl *ccsi_g = nullptr;
 static rrr::PollMgr *cli_poll_mgr_g = nullptr;
 static rrr::Server *cli_hb_server_g = nullptr;
 
+static vector<ServerWorker>* cli_workers = nullptr;
+
+
 void client_setup_heartbeat() {
   std::map<int32_t, std::string> txn_types;
-  TxnRequestFactory::get_txn_types(txn_types);
+  Frame().GetTxnTypes(txn_types);
   unsigned int num_threads = Config::GetConfig()->get_num_threads(); // func
   bool hb = Config::GetConfig()->do_heart_beat();
   if (hb) {
@@ -32,9 +36,9 @@ void client_setup_heartbeat() {
   }
 }
 
-void client_setup_request_factory() {
-  TxnRequestFactory::init_txn_req(nullptr, 0);
-}
+//void client_setup_request_factory() {
+////  TxnRequestFactory::init_txn_req(nullptr, 0);
+//}
 
 void client_launch_workers() {
   uint32_t duration = Config::GetConfig()->get_duration();
@@ -53,6 +57,8 @@ void client_launch_workers() {
   vector<std::thread> client_threads;
   vector<ClientWorker> workers(infos.size());
   for (uint32_t thread_index = 0; thread_index < infos.size(); thread_index++) {
+    auto &worker = workers[thread_index];
+    worker.txn_req_factory_ = new TxnRequestFactory(Config::GetConfig()->sharding_);
     workers[thread_index].servers = &servers;
     workers[thread_index].coo_id = infos[thread_index]->id;
     workers[thread_index].benchmark = benchmark;
@@ -69,7 +75,7 @@ void client_launch_workers() {
     th.join();
   }
 
-  TxnRequestFactory::destroy();
+//  TxnRequestFactory::destroy();
   RandomGenerator::destroy();
   Config::DestroyConfig();
 }
@@ -77,22 +83,35 @@ void client_launch_workers() {
 
 void server_launch_worker() {
   vector<Config::SiteInfo*> infos = Config::GetConfig()->GetMyServers();
-  vector<ServerWorker> workers(infos.size());
+  cli_workers = new vector<ServerWorker>(infos.size());
 
   for (uint32_t index = 0; index < infos.size(); index++) {
-    workers[index].site_info_ = infos[index];
+    Log_info("launching server, site: %x", infos[index]->id);
+    auto &worker = (*cli_workers)[index];
+    worker.sharding_ = Frame().CreateSharding(Config::GetConfig()->sharding_);
+    worker.sharding_->BuildTableInfoPtr();
+    // register txn piece logic
+    worker.RegPiece();
+    worker.site_info_ = infos[index];
     // setup communication between controller script
-    workers[index].SetupHeartbeat();
+    worker.SetupHeartbeat();
     // populate table according to benchmarks
-    workers[index].PopTable();
+    worker.PopTable();
     // start server service
-    workers[index].SetupService();
+    worker.SetupService();
+  }
+}
+
+void server_shutdown() {
+  // TODO
+  for (auto &worker : *cli_workers) {
+    worker.ShutDown();
   }
 }
 
 void check_current_path() {
   auto path = boost::filesystem::current_path();
-  std::cout << "Current path is : " << path << std::endl;
+  Log_info("PWD : ", path.string().c_str());
 }
 
 int main(int argc, char *argv[]) {
@@ -107,9 +126,8 @@ int main(int argc, char *argv[]) {
 
   vector<Config::SiteInfo*> infos = Config::GetConfig()->GetMyServers();
   if (infos.size() > 0) {
-    Log_info("launching servers, number of sites: %d", infos.size());
-    // register txn piece logic
-    ServerWorker::server_reg_piece();
+    Log_info("server enabled, number of sites: %d", infos.size());
+
     // start server service
     server_launch_worker();
   }
@@ -117,14 +135,17 @@ int main(int argc, char *argv[]) {
   //unsigned int cid = Config::get_config()->get_client_id();
   infos = Config::GetConfig()->GetMyClients();
   if (infos.size() > 0) {
-    Log_info("launching clients, number of sites: %d", infos.size());
-    client_setup_request_factory();
+    Log_info("client enabled, number of sites: %d", infos.size());
+//    client_setup_request_factory();
     client_setup_heartbeat();
     client_launch_workers();
-  }
-
-  while (1) {
-    sleep(1000);
+    // TODO shutdown servers.
+    server_shutdown();
+  } else {
+    Log_info("No clients running in this process, just sleep and wait.");
+    while (1) {
+      sleep(1000);
+    }
   }
 
   return 0;

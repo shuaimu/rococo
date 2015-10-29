@@ -1,0 +1,13 @@
+host:
+  - name: node1
+    addr: localhost
+    port: 8881
+lease:
+  master_id: 0
+  period: 500
+rs:
+  x: 1
+  n: 1
+  qr: 1 
+  qw: 1
+  f: 0

@@ -1,4 +1,5 @@
 #include "all.h"
+#include "tpl.h"
 
 namespace rococo {
 
@@ -14,7 +15,8 @@ void TpcaPiece::reg_all() {
 void TpcaPiece::reg_pieces() {
     BEGIN_PIE(TPCA_PAYMENT, TPCA_PAYMENT_1, DF_REAL) {
         Log::debug("output: %p, output_size: %p", output, output_size);
-        mdb::Txn *txn = DTxnMgr::get_sole_mgr()->get_mdb_txn(header);
+//        mdb::Txn *txn = DTxnMgr::get_sole_mgr()->get_mdb_txn(header);
+      mdb::Txn *txn = dtxn->mdb_txn_;
         Value buf;
         verify(input_size == 1);
         i32 output_index = 0;
@@ -28,7 +30,7 @@ void TpcaPiece::reg_pieces() {
             r = txn->query(txn->get_table(TPCA_CUSTOMER), mb).next();
         }
 
-        if (DTxnMgr::get_sole_mgr()->get_mode() == MODE_2PL && output_size == NULL) {
+        if (IS_MODE_2PL && output_size == NULL) {
             mdb::Txn2PL::PieceStatus *ps
                 = ((mdb::Txn2PL *)txn)->get_piece_status(header.pid);
             std::function<void(void)> succ = ((TPLDTxn*)dtxn)->get_2pl_succ_callback(
@@ -99,7 +101,8 @@ void TpcaPiece::reg_pieces() {
 
     BEGIN_PIE(TPCA_PAYMENT, TPCA_PAYMENT_2, DF_REAL) {
         Log::debug("output: %p, output_size: %p", output, output_size);
-        mdb::Txn *txn = DTxnMgr::get_sole_mgr()->get_mdb_txn(header);
+//        mdb::Txn *txn = DTxnMgr::get_sole_mgr()->get_mdb_txn(header);
+        mdb::Txn *txn = dtxn->mdb_txn_;
         Value buf;
         verify(input_size == 1);
         i32 output_index = 0;
@@ -113,7 +116,7 @@ void TpcaPiece::reg_pieces() {
             r = txn->query(txn->get_table(TPCA_TELLER), mb).next();
         }
 
-        if (DTxnMgr::get_sole_mgr()->get_mode() == MODE_2PL && output_size == NULL) {
+        if (IS_MODE_2PL && output_size == NULL) {
             mdb::Txn2PL::PieceStatus *ps
                 = ((mdb::Txn2PL *)txn)->get_piece_status(header.pid);
             std::function<void(void)> succ = ((TPLDTxn*)dtxn)->get_2pl_succ_callback(
@@ -193,7 +196,8 @@ void TpcaPiece::reg_pieces() {
 
     BEGIN_PIE(TPCA_PAYMENT, TPCA_PAYMENT_3, DF_REAL) {
         Log::debug("output: %p, output_size: %p", output, output_size);
-        mdb::Txn *txn = DTxnMgr::get_sole_mgr()->get_mdb_txn(header);
+//        mdb::Txn *txn = DTxnMgr::get_sole_mgr()->get_mdb_txn(header);
+                                                       mdb::Txn *txn = dtxn->mdb_txn_;
         Value buf;
         verify(input_size == 1);
         i32 output_index = 0;
@@ -207,7 +211,7 @@ void TpcaPiece::reg_pieces() {
             r = txn->query(txn->get_table(TPCA_BRANCH), mb).next();
         }
 
-        if (DTxnMgr::get_sole_mgr()->get_mode() == MODE_2PL && output_size == NULL) {
+        if (IS_MODE_2PL && output_size == NULL) {
             mdb::Txn2PL::PieceStatus *ps
                 = ((mdb::Txn2PL *)txn)->get_piece_status(header.pid);
             std::function<void(void)> succ = ((TPLDTxn*)dtxn)->get_2pl_succ_callback(
