@@ -34,20 +34,26 @@ Command *TxnChopper::GetNextSubCmd() {
   }
 
   for (int i = 0; i < sz; i++) {
-    if (status_[i] == 0) {
+
+    if (status_[i] == READY) {
+      status_[i] = INIT;
       cmd = new SimpleCommand();
-      cmd_vec_[i] = cmd;
       cmd->inn_id_ = i;
       cmd->par_id = sharding_[i];
       cmd->type_ = p_types_[i];
       cmd->input = inputs_[i];
       cmd->output_size = output_size_[i];
       cmd->root_ = this;
+      cmd_vec_[i] = cmd;
+
       partitions_.insert(sharding_[i]);
+
       Log_debug("getting subcmd i: %d, thread id: %x",
                 i, std::this_thread::get_id());
-      verify(status_[i] == 0);
-      status_[i] = 1;
+
+      verify(status_[i] == INIT);
+      status_[i] = ONGOING;
+
       verify(cmd->type_ != 0);
       n_pieces_out_++;
       return cmd;
@@ -69,24 +75,25 @@ int TxnChopper::next_piece(
 
   int status = 1;
   for (int i = 0; i < status_.size(); i++) {
-    if (status_[i] == 0) {
+    if (status_[i] == READY) {
       server_id = sharding_[i];
       partitions_.insert(server_id);
       pi = i;
       p_type = p_types_[i];
       input = &inputs_[i];
-      status_[i] = 1;
+      verify(status_[i] == READY);
+      status_[i] = ONGOING;
       output_size = output_size_[i];
       return 0;
-    } else if (status_[i] == 1) {
-    } else if (status_[i] == -1) {
+    } else if (status_[i] == ONGOING) {
+    } else if (status_[i] == WAITING) {
       status = -1;
     }
   }
 
-  if (status == 1) {
+  if (status == ONGOING) {
     return 1;   // all pieces are ongoing.
-  } else if (status == -1) {
+  } else if (status == WAITING) {
     return -1;  // some pieces are not ready.
   } else {
     verify(0);
@@ -98,50 +105,6 @@ int TxnChopper::batch_next_piece(BatchRequestHeader *batch_header,
                                  int32_t &server_id, std::vector<int> &pi,
                                  Coordinator *coo) {
   verify(0);
-//  if (n_started_ == n_pieces_)
-//    return 2;
-//
-//  int status = 1;
-//
-//  pi.reserve(status_.size());
-//  pi.clear();
-//  server_id = 0;
-//  uint32_t input_size = 0;
-//  for (int i = 0; i < status_.size(); i++) {
-//    if (status_[i] == 0) {
-//      if (pi.size() == 0) {
-//        server_id = sharding_[i];
-//        proxies_.insert(server_id);
-//        pi.push_back(i);
-//        input_size += inputs_[i].size();
-//        status_[i] = 1;
-//      }
-//      else if (server_id == sharding_[i]) {
-//        pi.push_back(i);
-//        input_size += inputs_[i].size();
-//        status_[i] = 1;
-//      }
-//    }
-//    else if (status_[i] == -1)
-//      status = -1;
-//  }
-//
-//  if (pi.size() > 0) {
-//    BatchStartArgsHelper bsah;
-//    bsah.init_input_client(&input, pi.size(), input_size);
-//    batch_header->expected_output_size = 0;
-//    std::vector<int>::iterator it = pi.begin();
-//    for (; it != pi.end(); it++) {
-//      bsah.put_next_input_client(inputs_[*it], (i32) p_types_[*it], (i64) coo->next_pie_id(), (i32) output_size_[*it]);
-//      batch_header->expected_output_size += (i32) output_size_[*it];
-//    }
-//
-//    batch_header->num_piece = (i32) pi.size();
-//
-//    return 0;
-//  }
-//
-//  return status;
 }
 
 void TxnChopper::Merge(Command &cmd) {
@@ -216,56 +179,6 @@ bool TxnChopper::read_only_start_callback(int pi, int *res, const std::vector<md
   }
   return start_callback(pi, SUCCESS, output);
 }
-
-//int TxnChopper::next_piece(
-//        std::vector<std::vector<mdb::Value> > &input,
-//        int32_t& server_id,
-//        std::vector<int32_t> &pi,
-//        std::vector<int32_t> &p_type) {
-//
-//    input.clear();
-//    pi.clear();
-//    p_type.clear();
-//    if (n_started_ == n_pieces_) {
-//        return 2;
-//    }
-//
-//    bool server_set = false;
-//    int status = 1;
-//    for (int i = 0; i < status_.size(); i++) {
-//        if (status_[i] == 0) {
-//            if (!server_set) {
-//                server_set = true;
-//                server_id = sharding_[i];
-//                proxies_.insert(server_id);
-//                pi.push_back(i);
-//                p_type.push_back(p_types_[i]);
-//                input.push_back(inputs_[i]);
-//                status_[i] = 1;
-//            }
-//            else if (server_id == sharding_[i]) {
-//                pi.push_back(i);
-//                p_type.push_back(p_types_[i]);
-//                input.push_back(inputs_[i]);
-//                status_[i] = 1;
-//            }
-//        } else if (status_[i] == 1) {
-//        } else if (status_[i] == -1) {
-//            status = -1;
-//        }
-//    }
-//
-//    if (server_set)
-//        return 0;
-//
-//    if (status == 1) {
-//        return 1;   // all pieces are ongoing.
-//    } else if (status == -1) {
-//        return -1;  // some pieces are not ready.
-//    } else {
-//        verify(0);
-//    }
-//}
 
 double TxnChopper::last_attempt_latency() {
   double tmp = pre_time_;

@@ -12,6 +12,8 @@
 namespace rococo {
 class ClientControlServiceImpl;
 
+enum CoordinatorStage { START, PREPARE, FINISH };
+
 class Coordinator {
  public:
   uint32_t coo_id_;
@@ -32,12 +34,13 @@ class Coordinator {
   std::atomic<uint64_t> next_pie_id_;
   std::atomic<uint64_t> next_txn_id_;
 
-  Mutex mtx_;
+  std::mutex mtx_;
   std::mutex start_mtx_;
   Commo *commo_;
   Recorder *recorder_;
   Command *cmd_; 
   cmdid_t cmd_id_;
+  CoordinatorStage stage_ = START;
   phase_t phase_ = 0;
 //  map<innid_t, Command*> cmd_map_;
   map<innid_t, bool> start_ack_map_;
@@ -117,22 +120,23 @@ class Coordinator {
   void restart(TxnChopper *ch);
 
   void Start();
-  void StartAck(StartReply &reply, const phase_t &phase);
+  void StartAck(StartReply &reply, phase_t phase);
 //  void LegacyStart(TxnChopper *ch);
 //  void LegacyStartAck(TxnChopper *ch, int pi, Future *fu);
   void rpc_null_start(TxnChopper *ch);
   void naive_batch_start(TxnChopper *ch);
 //  void batch_start(TxnChopper *ch);
   void Prepare();
-  void PrepareAck(TxnChopper *ch, Future *fu);
+  void PrepareAck(TxnChopper *ch, phase_t phase, Future *fu);
   void Finish();
-  void FinishAck(TxnChopper *ch, Future *fu);
+  void FinishAck(TxnChopper *ch, phase_t phase, Future *fu);
   void Abort() {verify(0);}
 
+  bool has_stale_phase_or_stage(phase_t phase, CoordinatorStage stage);
+  void change_stage(CoordinatorStage stage);
   bool AllStartAckCollected();
 
-    RequestHeader gen_header(TxnChopper *ch);
-
+  RequestHeader gen_header(TxnChopper *ch);
   BatchRequestHeader gen_batch_header(TxnChopper *ch);
 
   void report(TxnReply &txn_reply,

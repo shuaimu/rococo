@@ -1,6 +1,7 @@
 #include "marshal-value.h"
 #include "coordinator.h"
 #include "frame.h"
+#include "constants.h"
 #include "sharding.h"
 #include "txn_req_factory.h"
 #include "txn-chopper-factory.h"
@@ -95,38 +96,20 @@ BatchRequestHeader Coordinator::gen_batch_header(TxnChopper *ch) {
 /** thread safe */
 void Coordinator::do_one(TxnRequest &req) {
   // pre-process
-  ScopedLock(this->mtx_);
+  std::lock_guard<std::mutex> lock(this->mtx_);
   TxnChopper *ch = Frame().CreateChopper(req);
   cmd_ = ch;
   cmd_id_ = this->next_txn_id();
   cleanup(); // In case of reuse.
 
-  // turn off batch now
-  // if (batch_optimal_)
-  //     batch_start(ch);
-
-  Log::debug("do one request");
+  Log::debug("do one request txn_id: %ld\n", cmd_id_);
 
   if (ccsi_) ccsi_->txn_start_one(thread_id_, ch->txn_type_);
 
   switch (mode_) {
     case MODE_OCC:
     case MODE_2PL:
-      //        if (recorder_) {
-      if (false) {
-//        std::string log_s;
-//        req.get_log(ch->txn_id_, log_s);
-//        std::function<void(void)> start_func = [this, ch]() {
-//          if (batch_optimal_) {
-//            naive_batch_start(ch);
-//          } else {
-//            LegacyStart(ch);
-//          }
-//        };
-//        recorder_->submit(log_s, start_func);
-      } else {
-        Start();
-      }
+      Start();
       break;
     case MODE_RPC_NULL:
       rpc_null_start(ch);
@@ -160,6 +143,25 @@ void Coordinator::rpc_null_start(TxnChopper *ch) {
   Future::safe_release(proxy->async_rpc_null(fuattr));
 }
 
+void Coordinator::change_stage(CoordinatorStage stage) {
+  phase_++;
+  stage_ = stage;
+  Log_debug("moving to phase %ld; stage %d", phase_, stage_);
+}
+
+bool Coordinator::has_stale_phase_or_stage(phase_t phase, CoordinatorStage stage) {
+  bool result = false;
+  if (phase_ != phase) {
+      Log_debug("phase %d doesn't match %d\n", phase, phase_);
+      result = true;
+  }
+  if (stage_ != stage) {
+      Log_debug("stage %d doesn't match %d\n", stage, stage_);
+      result = true;
+  }
+  return result;
+}
+
 void Coordinator::cleanup() {
   n_start_ = 0;
   n_start_ack_ = 0;
@@ -168,11 +170,12 @@ void Coordinator::cleanup() {
   n_finish_req_ = 0;
   n_finish_ack_ = 0;
   start_ack_map_.clear();
+  change_stage(START);
   TxnChopper *ch = (TxnChopper *) cmd_;
 }
 
 void Coordinator::restart(TxnChopper *ch) {
-  ScopedLock(this->mtx_);
+  std::lock_guard<std::mutex> lock(this->mtx_);
   cleanup();
   ch->retry();
 
@@ -186,25 +189,31 @@ void Coordinator::restart(TxnChopper *ch) {
 }
 
 void Coordinator::Start() {
-  std::lock_guard<std::mutex> lock(start_mtx_);
-  StartRequest req;
-  req.cmd_id = cmd_id_;
-  Command *subcmd;
-  phase_t phase = phase_;
-  std::function<void(StartReply &)> callback = [this, phase](StartReply &reply) {
-    this->StartAck(reply, phase);
-  };
-  while ((subcmd = cmd_->GetNextSubCmd()) != nullptr) {
-    req.pie_id = next_pie_id();
-    Log_debug("send out start request, "
-                  "cmd_id: %lx, inn_id: %d, pie_id: %lx",
-              cmd_id_, subcmd->inn_id_, req.pie_id);
-//    auto &cmd = cmd_map_[subcmd->inn_id_];
-//    verify(cmd == nullptr);
-    req.cmd = subcmd;
-    n_start_++;
-    commo_->SendStart(subcmd->GetPar(), req, this, callback);
-  }
+    std::lock_guard<std::mutex> lock(start_mtx_);
+
+    if (stage_ != START) {
+      change_stage(START);
+    }
+
+    StartRequest req;
+    req.cmd_id = cmd_id_;
+    Command *subcmd;
+
+    auto phase = phase_;
+    std::function<void(StartReply &)> callback = [this, phase](StartReply &reply) {
+        this->StartAck(reply, phase);
+        //delete reply.cmd;
+    };
+
+    while ((subcmd = cmd_->GetNextSubCmd()) != nullptr) {
+        req.pie_id = next_pie_id();
+        n_start_++;
+        Log_debug("send out start request %ld, "
+                          "cmd_id: %lx, inn_id: %d, pie_id: %lx",
+                  n_start_, cmd_id_, subcmd->inn_id_, req.pie_id);
+        req.cmd = subcmd;
+        commo_->SendStart(subcmd->GetPar(), req, this, callback);
+    }
 }
 
 bool Coordinator::AllStartAckCollected() {
@@ -214,22 +223,26 @@ bool Coordinator::AllStartAckCollected() {
   return true;
 }
 
-void Coordinator::StartAck(StartReply &reply, const phase_t &phase) {
-  ScopedLock(this->mtx_);
-  if (phase != phase_) return;
+void Coordinator::StartAck(StartReply &reply, phase_t phase) {
+  std::lock_guard<std::mutex> lock(this->mtx_);
+  if (has_stale_phase_or_stage(phase, START)) {
+    Log_debug("ignore stale startack\n");
+    return;
+  }
 
   TxnChopper *ch = (TxnChopper *) cmd_;
   n_start_ack_++;
 
-  Log_debug("get start ack for cmd_id: %lx, inn_id: %d",
-            cmd_id_, reply.cmd->inn_id_);
+  Log_debug("get start ack %ld/%ld for cmd_id: %lx, inn_id: %d",
+            n_start_ack_, n_start_, cmd_id_, reply.cmd->inn_id_);
   start_ack_map_[reply.cmd->inn_id_] = true;
   if (reply.res == REJECT) {
+    Log::debug("got REJECT reply for cmd_id: %lx, inn_id: %d; NOT COMMITING", cmd_id_,reply.cmd->inn_id());
     ch->commit_.store(false);
   }
   if (!ch->commit_.load()) {
     if (n_start_ack_ == n_start_) {
-      phase_++;
+      Log::debug("received all start acks (at least one is REJECT); calling Finish()");
       this->Finish();
     }
   } else {
@@ -240,72 +253,11 @@ void Coordinator::StartAck(StartReply &reply, const phase_t &phase) {
                 cmd_id_, ch->n_pieces_out_, ch->n_pieces_all_);
       Start();
     } else if (AllStartAckCollected()) {
-      Log_debug("receive all start acks, txn_id: %lx", cmd_id_);
-      phase_++;
+      Log_debug("receive all start acks, txn_id: %ld; START PREPARE", cmd_id_);
       Prepare();
-    } else {
-      if (n_start_ == n_start_ack_) verify(0);
     }
   }
 }
-
-//
-//void Coordinator::LegacyStart(TxnChopper *ch) {
-//  // new txn id for every new and retry.
-//  RequestHeader header = gen_header(ch);
-//  int pi;
-//  std::vector<Value> *input;
-//  int32_t server_id;
-//  int res;
-//  int output_size;
-//  while ((res = ch->next_piece(input,
-//                               output_size,
-//                               server_id,
-//                               pi,
-//                               header.p_type)) == 0) {
-//    header.pid = next_pie_id();
-//
-//    std::function<void(Future*)> callback = [ch, pi, this](Future *fu) {
-//      this->LegacyStartAck(ch, pi, fu);
-//    };
-//
-//    // remember this a asynchronous call!
-//    // variable functional range is important!
-//
-//    commo_->SendStart(server_id, header, *input, output_size, callback);
-//
-//    ch->n_start_sent_++;
-//    site_piece_[server_id]++;
-//  }
-//}
-
-//
-//void Coordinator::LegacyStartAck(TxnChopper *ch, int pi, Future *fu) {
-//  ScopedLock(this->mtx_);
-//
-//  int res;
-//  std::vector<mdb::Value> output;
-//  fu->get_reply() >> res >> output;
-//  ch->n_started_++;
-//  ch->n_start_sent_--;
-//
-//  if (res == REJECT) {
-//    verify(this->mode_ == MODE_2PL);
-//    ch->commit_.store(false);
-//  }
-//
-//  if (!ch->commit_.load()) {
-//    if (ch->n_start_sent_ == 0) {
-//      this->finish(ch);
-//    }
-//  } else {
-//    if (ch->start_callback(pi, res, output)) {
-//      this->LegacyStart(ch);
-//    } else if (ch->n_started_ == ch->n_pieces_) {
-//      this->Prepare(ch);
-//    }
-//  }
-//}
 
 void Coordinator::naive_batch_start(TxnChopper *ch) {
 
@@ -313,61 +265,71 @@ void Coordinator::naive_batch_start(TxnChopper *ch) {
 
 /** caller should be thread_safe */
 void Coordinator::Prepare() {
+  change_stage(PREPARE);
   TxnChopper *ch = (TxnChopper *) cmd_;
   verify(mode_ == MODE_OCC || mode_ == MODE_2PL);
-  RequestHeader header = gen_header(ch);
-
   // prepare piece, currently only useful for OCC
-  std::function<void(Future *)> callback = [ch, this](Future *fu) {
-    this->PrepareAck(ch, fu);
+  auto phase = phase_;
+  std::function<void(Future *)> callback = [ch, phase, this](Future *fu) {
+    this->PrepareAck(ch, phase, fu);
   };
-
   std::vector<i32> sids;
-//  sids.reserve(ch->proxies_.size());
-
+  // sids.reserve(ch->proxies_.size());
   for (auto &rp : ch->partitions_) {
     sids.push_back(rp);
   }
   for (auto &rp : ch->partitions_) {
+    RequestHeader header = gen_header(ch);
     Log::debug("send prepare tid: %ld", header.tid);
     commo_->SendPrepare(rp, header.tid, sids, callback);
     site_prepare_[rp]++;
   }
 }
 
-void Coordinator::PrepareAck(TxnChopper *ch, Future *fu) {
-  ScopedLock(this->mtx_);
+void Coordinator::PrepareAck(TxnChopper *ch, phase_t phase, Future *fu) {
+  std::lock_guard<std::mutex> lock(this->mtx_);
+  if (has_stale_phase_or_stage(phase, PREPARE)) {
+      Log_debug("ignore stale prepareack\n");
+      return;
+  }
+
   n_prepare_ack_++;
   int32_t e = fu->get_error_code();
 
   if (e != 0) {
     ch->commit_.store(false);
-    Log_debug("2PL prepare failed");
+    Log_debug("2PL prepare failed due to error");
   } else {
     int res;
+    RequestHeader header = gen_header(ch);
     fu->get_reply() >> res;
-    Log::debug("pre res: %d", res);
+    Log::debug("tid %ld; prepare result %d", header.tid, res);
 
     if (res == REJECT) {
+      Log::debug("Prepare rejected for %ld by %ld\n", header.tid, ch->inn_id());
       ch->commit_.store(false);
     }
   }
 
   if (n_prepare_ack_ == ch->partitions_.size()) {
-    phase_ ++;
+    RequestHeader header = gen_header(ch);
+    Log_debug("2PL prepare finished for %ld", header.tid);
     this->Finish();
   }
 }
 
 /** caller should be thread safe */
 void Coordinator::Finish() {
+  change_stage(FINISH);
   TxnChopper *ch = (TxnChopper *) cmd_;
   verify(mode_ == MODE_OCC || mode_ == MODE_2PL);
+  n_finish_req_++;
+  Log_debug("send out finish request, cmd_id: %lx, %ld", cmd_id_, n_finish_req_);
 
-  Log_debug("send out finish request, cmd_id: %lx", cmd_id_);
   // commit or abort piece
-  std::function<void(Future *)> callback = [ch, this](Future *fu) {
-    this->FinishAck(ch, fu);
+  auto phase = phase_;
+  std::function<void(Future *)> callback = [ch, phase, this](Future *fu) {
+    this->FinishAck(ch, phase, fu);
   };
   if (ch->commit_.load()) {
     Log_debug("send finish");
@@ -386,15 +348,19 @@ void Coordinator::Finish() {
   }
 }
 
-void Coordinator::FinishAck(TxnChopper *ch, Future *fu) {
+void Coordinator::FinishAck(TxnChopper *ch, phase_t phase, Future *fu) {
   bool callback = false;
   bool retry = false;
   {
-    ScopedLock(this->mtx_);
+    std::lock_guard<std::mutex> lock(this->mtx_);
+    if (has_stale_phase_or_stage(phase, FINISH)) {
+        Log_debug("ignore stale finish ack\n");
+        return;
+    }
+
     n_finish_ack_++;
-
-    Log::debug("finish");
-
+    Log::debug("finish cmd_id_: %ld; n_finish_ack_: %ld; n_finish_req_: %ld", cmd_id_, n_finish_ack_, n_finish_req_);
+    verify(ch->GetPars().size() == n_finish_req_);
     if (n_finish_ack_ == ch->GetPars().size()) {
       if ((ch->reply_.res_ == REJECT) && ch->can_retry()) {
         retry = true;
@@ -407,15 +373,6 @@ void Coordinator::FinishAck(TxnChopper *ch, Future *fu) {
              retry ? "True" : "False");
 
   if (retry) {
-    // random sleep before restart
-    //            struct timespec sleep_time, buf;
-    //            sleep_time.tv_sec = coo_id_;//RandomGenerator::rand(0, 4);
-    //            sleep_time.tv_nsec = 0;//RandomGenerator::rand(0, 1000 *
-    // 1000 * 1000 - 1);
-    //            nanosleep(&sleep_time, &buf);
-    //            uint64_t sleep_time = coo_id_ * 1000000 / 2;
-    //            apr_sleep(sleep_time);
-
     this->restart(ch);
   }
 
@@ -429,13 +386,6 @@ void Coordinator::FinishAck(TxnChopper *ch, Future *fu) {
 #endif // ifdef TXN_STAT
     );
 
-    // if (retry_wait_ && txn_reply_buf.res_ != SUCCESS) {
-    //    struct timespec sleep_time, buf;
-    //    sleep_time.tv_sec = 0;
-    //    sleep_time.tv_nsec = RandomGenerator::rand(1000 * 1000, 10 * 1000 *
-    // 1000);
-    //    nanosleep(&sleep_time, &buf);
-    // }
     ch->callback_(txn_reply_buf);
     delete ch;
   }
