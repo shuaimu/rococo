@@ -1,3 +1,4 @@
+#include <deptran/mdcc/coordinator.h>
 #include "__dep__.h"
 #include "frame.h"
 #include "config.h"
@@ -46,22 +47,23 @@
 
 #include "tpl/sched.h"
 #include "occ/sched.h"
-
+#include "deptran/mdcc/coordinator.h"
 
 namespace rococo {
 
 Sharding* Frame::CreateSharding() {
-
   Sharding* ret;
   auto bench = Config::config_s->benchmark_;
   switch (bench) {
     case TPCC_REAL_DIST_PART:
       ret = new TPCCDSharding();
       break;
+    case RW_BENCHMARK:
+      ret = new Sharding();
+      break;
     default:
       verify(0);
   }
-
   return ret;
 }
 
@@ -81,6 +83,7 @@ mdb::Row* Frame::CreateRow(const mdb::Schema *schema,
       break;
 
     case MODE_NONE: // FIXME
+    case MODE_MDCC:
     case MODE_OCC:
       r = mdb::VersionedRow::create(schema, row_data);
       break;
@@ -135,6 +138,11 @@ Coordinator* Frame::CreateCoord(cooid_t coo_id,
                            benchmark, mode,
                            ccsi, id,
                            batch_start);
+      break;
+    case MODE_MDCC:
+      coo = new mdcc::MdccCoordinator(coo_id, servers,
+                                      benchmark, mode,
+                                      ccsi, id, batch_start);
       break;
     default:
       verify(0);
@@ -258,7 +266,6 @@ Scheduler* Frame::CreateScheduler() {
       break;
     case MODE_NONE:
     case MODE_RPC_NULL:
-
     case MODE_RCC:
     case MODE_RO6:
       break;

@@ -29,7 +29,8 @@ class Config {
       {"2pl_w", MODE_2PL},
       {"2pl_wait_die", MODE_2PL},
       {"2pl_ww", MODE_2PL},
-      {"2pl_wound_die", MODE_2PL}
+      {"2pl_wound_die", MODE_2PL},
+      {"mdcc", MODE_MDCC}
   };
 
   std::map<string, mdb::symbol_t> tbl_types_map_ = {
@@ -92,6 +93,7 @@ class Config {
     uint32_t n_thread;   // should be 1 for now
     SiteInfoType type_; 
     string proc_name;
+    uint32_t partition_id_=0;
 
     SiteInfo() = delete;
     SiteInfo(uint32_t id) {

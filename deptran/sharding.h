@@ -83,8 +83,6 @@ class Sharding {
              bool _is_foreign,
              string ftbl_name,
              string fcol_name
-//             tb_info_t *_foreign_tb,
-//             column_t *_foreign
     ) : type(_type), name(_name), is_primary(_is_primary), values(NULL),
         is_foreign(_is_foreign),
         foreign_tbl_name(ftbl_name),
@@ -128,27 +126,20 @@ class Sharding {
       if (method == "modulus") sharding_method = MODULUS;
       else if (method == "int_modulus") sharding_method = INT_MODULUS;
       else sharding_method = MODULUS;
+      if (sid != nullptr) {
+        site_id.insert(site_id.begin(), (*sid).begin(), (*sid).end());
+      }
     }
-
-//    tb_info_t(const tb_info_t& tbl)
-//        : num_site(tbl.num_site), site_id(tbl.site_id),
-//          num_records(tbl.num_records), symbol(tbl.symbol),
-//          sharding_method(tbl.sharding_method), populated(tbl.populated),
-//          columns(tbl.columns), tb_name(tbl.tb_name) {
-//      // TODO
-//    }
 
     method_t sharding_method;
     uint32_t num_site;
     std::vector<uint32_t> site_id;
     uint64_t num_records;
-//    bool populated;
     map<uint32_t, bool> populated;
 
     std::vector<column_t> columns;
     mdb::symbol_t symbol;
     std::string tb_name;
-
   };
 
   std::map<std::string, tb_info_t> tb_infos_;
@@ -193,24 +184,20 @@ class Sharding {
   void release_foreign_values();
 
   uint32_t site_from_key(const MultiValue &key,
-                                    const tb_info_t *tb_info);
+                         const tb_info_t *tb_info);
 
   uint32_t modulus(const MultiValue &key,
                    unsigned int num_site,
-                   const std::vector<uint32_t>& site_id);
+                   const std::vector<uint32_t> &site_id);
 
   uint32_t int_modulus(const MultiValue &key,
                        unsigned int num_site,
-                       const std::vector<uint32_t>& site_id);
-
-
-//  static Sharding *sharding_s;
+                       const std::vector<uint32_t> &site_id);
 
   Sharding();
   Sharding(const Sharding& sharding);
 
  public:
-
   int init_schema(const std::string &tb_name,
                          mdb::Schema *schema,
                          mdb::symbol_t *symbol);

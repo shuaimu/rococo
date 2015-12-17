@@ -47,6 +47,7 @@ namespace rococo {
 #define MODE_RCC    (0x04)
 #define MODE_RO6    (0x08)
 #define MODE_BRQ    (0x10)
+#define MODE_MDCC   (0x12)
 #define MODE_RPC_NULL   (64)
 
     // deprecated.
@@ -70,25 +71,12 @@ namespace rococo {
 #define WDR (0x1)
 
 
-/** TPCA */
 #define TPCA (0)
-
-
-/** TPCC */
 #define TPCC (1)
-
-
-/** RW Benchmark */
 #define RW_BENCHMARK (2)
-
-
-/** TPCC */
 #define TPCC_DIST_PART (3)
-
-/** TPCC */
 #define TPCC_REAL_DIST_PART (4)
-
-/** micro Benchmark */
 #define MICRO_BENCH (5)
+#define SIMPLE_BENCH (6)
 
 } // namespace rococo

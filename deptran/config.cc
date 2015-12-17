@@ -263,10 +263,6 @@ Config::Config(char           *ctrl_hostname,
 
 void Config::Load() {
   for (auto &name: config_paths_) {
-    // XML configurations are deprecated
-//    if (boost::algorithm::ends_with(name, "xml")) {
-//      LoadXML(name);
-//    }
     if (boost::algorithm::ends_with(name, "yml")) {
       LoadYML(name);
     } else {
@@ -279,13 +275,7 @@ void Config::Load() {
 }
 
 void Config::LoadYML(std::string &filename) {
-//  YAML::Node config = YAML::LoadFile(name);
-
   YAML::Node config = YAML::LoadFile(filename);
-
-//  verify(Sharding::sharding_s);
-
-//  Sharding::sharding_s = new Sharding();
 
   if (config["site"]) {
     LoadSiteYML(config["site"]);
@@ -320,6 +310,7 @@ void Config::LoadSiteYML(YAML::Node config) {
     for (auto group_it = group.begin(); group_it != group.end(); group_it++) {
       auto site_addr = group_it->as<string>();
       SiteInfo info(site_id++, site_addr);
+      info.partition_id_ = replica_group.partition_id;
       info.type_ = SERVER;
       replica_group.replicas.push_back(info);
     }
@@ -410,6 +401,8 @@ void Config::init_bench(std::string& bench_str) {
     benchmark_ = RW_BENCHMARK;
   } else if (bench_str == "micro_bench") {
     benchmark_ = MICRO_BENCH;
+  } else if (bench_str == "simple_bench") {
+    benchmark_ = SIMPLE_BENCH;
   } else {
     Log_error("No implementation for benchmark: %s", bench_str.c_str());
     verify(0);
@@ -462,7 +455,7 @@ void Config::LoadBenchYML(YAML::Node config) {
   txn_weight_.push_back(txn_weights_["order_status"]);
   txn_weight_.push_back(txn_weights_["delivery"]);
   txn_weight_.push_back(txn_weights_["stock_level"]);
-//  this->InitTPCCD();
+
   sharding_ = Frame().CreateSharding();
   auto populations = config["population"];
   auto &tb_infos = sharding_->tb_infos_;
@@ -576,9 +569,6 @@ void Config::LoadShardingYML(YAML::Node config) {
       verify(tbl_info.num_site > 0 && tbl_info.num_site <= get_num_site());
       tbl_info.symbol = tbl_types_map_["sorted"];
     }
-    verify(tbl_info.num_site > 0 && tbl_info.num_site <= get_num_site());
-    // set tb_info.symbol TBL_SORTED or TBL_UNSORTED or TBL_SNAPSHOT
-    tbl_info.symbol = tbl_types_map_["sorted"];
   }
 }
 
