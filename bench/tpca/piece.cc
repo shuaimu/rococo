@@ -13,18 +13,18 @@ void TpcaPiece::reg_all() {
 }
 
 void TpcaPiece::reg_pieces() {
-    BEGIN_PIE(TPCA_PAYMENT, TPCA_PAYMENT_1, DF_REAL) {
-        Log::debug("output: %p, output_size: %p", output, output_size);
+  BEGIN_PIE(TPCA_PAYMENT, TPCA_PAYMENT_1, DF_REAL) {
+//        Log::debug("output: %p, output_size: %p", output, output_size);
 //        mdb::Txn *txn = DTxnMgr::get_sole_mgr()->get_mdb_txn(header);
       mdb::Txn *txn = dtxn->mdb_txn_;
         Value buf;
-        verify(input_size == 1);
+        verify(input.size() == 1);
         i32 output_index = 0;
 
         mdb::Row *r = NULL;
         mdb::MultiBlob mb(1);
         //cell_locator_t cl(TPCA_CUSTOMER, 1);
-        mb[0] = input[0].get_blob();
+        mb[0] = input.at(0).get_blob();
 
         if (!IS_MODE_RCC || (IS_MODE_RCC && IN_PHASE_1)) { // non deptran || deptran start req
             r = txn->query(txn->get_table(TPCA_CUSTOMER), mb).next();
@@ -34,7 +34,7 @@ void TpcaPiece::reg_pieces() {
             mdb::Txn2PL::PieceStatus *ps
                 = ((mdb::Txn2PL *)txn)->get_piece_status(header.pid);
             std::function<void(void)> succ = ((TPLExecutor*) exec)->get_2pl_succ_callback(
-                    header, input, input_size, res, ps);
+                    header, input, res, ps);
             std::function<void(void)> fail = ((TPLExecutor*) exec)->get_2pl_fail_callback(
                     header, res, ps);
             ps->reg_rw_lock(std::vector<mdb::column_lock_t>({
@@ -100,17 +100,17 @@ void TpcaPiece::reg_pieces() {
     } END_PIE
 
     BEGIN_PIE(TPCA_PAYMENT, TPCA_PAYMENT_2, DF_REAL) {
-        Log::debug("output: %p, output_size: %p", output, output_size);
+//        Log::debug("output: %p, output_size: %p", output, output_size);
 //        mdb::Txn *txn = DTxnMgr::get_sole_mgr()->get_mdb_txn(header);
         mdb::Txn *txn = dtxn->mdb_txn_;
         Value buf;
-        verify(input_size == 1);
+        verify(input.size() == 1);
         i32 output_index = 0;
 
         mdb::Row *r = NULL;
         mdb::MultiBlob mb(1);
         //cell_locator_t cl(TPCA_CUSTOMER, 1);
-        mb[0] = input[0].get_blob();
+        mb[0] = input.at(0).get_blob();
 
         if (!IS_MODE_RCC || (IS_MODE_RCC && IN_PHASE_1)) { // non deptran || deptran start req
             r = txn->query(txn->get_table(TPCA_TELLER), mb).next();
@@ -120,7 +120,7 @@ void TpcaPiece::reg_pieces() {
             mdb::Txn2PL::PieceStatus *ps
                 = ((mdb::Txn2PL *)txn)->get_piece_status(header.pid);
             std::function<void(void)> succ = ((TPLExecutor*) exec)->get_2pl_succ_callback(
-                    header, input, input_size, res, ps);
+                    header, input, res, ps);
             std::function<void(void)> fail = ((TPLExecutor*) exec)->get_2pl_fail_callback(
                     header, res, ps);
             ps->reg_rw_lock(std::vector<mdb::column_lock_t>({
@@ -178,14 +178,14 @@ void TpcaPiece::reg_pieces() {
         if (!txn->read_column(r, 1, &buf)) {
             *res = REJECT;
             *output_size = output_index;
-            Log::debug("Customer id: %d, read failed", input[0].get_i32());
+            Log::debug("Customer id: %d, read failed", input.at(0).get_i32());
             return;
         }
         buf.set_i64(buf.get_i64() + 1/*input[1].get_i64()*/);
         if (!txn->write_column(r, 1, buf)) {
             *res = REJECT;
             *output_size = output_index;
-            Log::debug("Customer id: %d, write failed", input[0].get_i32());
+            Log::debug("Customer id: %d, write failed", input.at(0).get_i32());
             return;
         }
         //output[output_index++] = buf;
@@ -195,17 +195,17 @@ void TpcaPiece::reg_pieces() {
     } END_PIE
 
     BEGIN_PIE(TPCA_PAYMENT, TPCA_PAYMENT_3, DF_REAL) {
-        Log::debug("output: %p, output_size: %p", output, output_size);
+//        Log::debug("output: %p, output_size: %p", output, output_size);
 //        mdb::Txn *txn = DTxnMgr::get_sole_mgr()->get_mdb_txn(header);
                                                        mdb::Txn *txn = dtxn->mdb_txn_;
         Value buf;
-        verify(input_size == 1);
+        verify(input.size() == 1);
         i32 output_index = 0;
 
         mdb::Row *r = NULL;
         mdb::MultiBlob mb(1);
         //cell_locator_t cl(TPCA_BRANCH, 1);
-        mb[0] = input[0].get_blob();
+        mb[0] = input.at(0).get_blob();
 
         if (!IS_MODE_RCC || (IS_MODE_RCC && IN_PHASE_1)) { // non deptran || deptran start req
             r = txn->query(txn->get_table(TPCA_BRANCH), mb).next();
@@ -215,7 +215,7 @@ void TpcaPiece::reg_pieces() {
             mdb::Txn2PL::PieceStatus *ps
                 = ((mdb::Txn2PL *)txn)->get_piece_status(header.pid);
             std::function<void(void)> succ = ((TPLExecutor*) exec)->get_2pl_succ_callback(
-                    header, input, input_size, res, ps);
+                    header, input, res, ps);
             std::function<void(void)> fail = ((TPLExecutor*) exec)->get_2pl_fail_callback(
                     header, res, ps);
             ps->reg_rw_lock(std::vector<mdb::column_lock_t>({
@@ -273,14 +273,14 @@ void TpcaPiece::reg_pieces() {
         if (!txn->read_column(r, 1, &buf)) {
             *res = REJECT;
             *output_size = output_index;
-            Log::debug("Customer id: %d, read failed", input[0].get_i32());
+            Log::debug("Customer id: %d, read failed", input.at(0).get_i32());
             return;
         }
         buf.set_i64(buf.get_i64() + 1/*input[1].get_i64()*/);
         if (!txn->write_column(r, 1, buf)) {
             *res = REJECT;
             *output_size = output_index;
-            Log::debug("Customer id: %d, write failed", input[0].get_i32());
+            Log::debug("Customer id: %d, write failed", input.at(0).get_i32());
             return;
         }
         //output[output_index++] = buf;

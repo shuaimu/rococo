@@ -22,35 +22,35 @@ class Piece {
 #define BEGIN_PIE(txn, pie, iod) \
   txn_reg_->reg(txn, pie, iod, \
         [this] (Executor* exec, \
-DTxn *dtxn, \
+                DTxn *dtxn, \
                 const RequestHeader &header, \
-            const Value *input, \
-            i32 input_size, \
-            i32 *res, \
-            Value *output, \
-            i32 *output_size, \
-            row_map_t *row_map)
+                map<int32_t, Value> &input, \
+                i32 *res, \
+                map<int32_t, Value> &output, \
+                i32 *output_size)
+// \
+//                row_map_t *row_map)
 #define END_PIE );
 
 #define TPL_KISS(...) \
-    if (IS_MODE_2PL && output_size == NULL) { \
-        mdb::Txn2PL *tpl_txn = (mdb::Txn2PL *)dtxn->mdb_txn_; \
-        mdb::Txn2PL::PieceStatus *ps \
-            = tpl_txn->get_piece_status(header.pid); \
-        std::function<void(void)> succ_callback = \
-            ((TPLExecutor*)exec)->get_2pl_succ_callback(header, input, input_size, res, ps); \
-        std::function<void(void)> fail_callback = \
-            ((TPLExecutor*)exec)->get_2pl_fail_callback(header, res, ps); \
-        ps->reg_rw_lock( \
-            std::vector<mdb::column_lock_t>({__VA_ARGS__}), \
-            succ_callback, fail_callback); \
-        return; \
-    }
+  if (IS_MODE_2PL && output_size == NULL) { \
+    mdb::Txn2PL *tpl_txn = (mdb::Txn2PL *)dtxn->mdb_txn_; \
+    mdb::Txn2PL::PieceStatus *ps \
+        = tpl_txn->get_piece_status(header.pid); \
+    std::function<void(void)> succ_callback = \
+        ((TPLExecutor*)exec)->get_2pl_succ_callback(header, input, res, ps); \
+    std::function<void(void)> fail_callback = \
+        ((TPLExecutor*)exec)->get_2pl_fail_callback(header, res, ps); \
+    ps->reg_rw_lock( \
+        std::vector<mdb::column_lock_t>({__VA_ARGS__}), \
+        succ_callback, fail_callback); \
+    return; \
+  }
 
 #define TPL_KISS_NONE \
     if (IS_MODE_2PL && output_size == NULL) { \
         ((TPLExecutor*)exec)->get_2pl_proceed_callback( \
-                header, input, input_size, res)(); \
+                header, input, res)(); \
         return; \
     }
 
@@ -69,19 +69,21 @@ DTxn *dtxn, \
     } while(0);
 
 #define RCC_SAVE_ROW(row, index) \
-    if ((IS_MODE_RCC || IS_MODE_RO6) && IN_PHASE_1) { \
-        auto ret = row_map->insert(std::pair<int, mdb::Row*>(index, row)); \
-        verify(ret.second); \
-        verify(row->schema_); \
-    }
+  if ((IS_MODE_RCC || IS_MODE_RO6) && IN_PHASE_1) { \
+    auto &row_map = ((RCCDTxn*)dtxn)->dreqs_.back().row_map; \
+    auto ret = row_map.insert(std::pair<int, mdb::Row*>(index, row)); \
+    verify(ret.second); \
+    verify(row->schema_); \
+  }
 
 #define RCC_LOAD_ROW(row, index) \
-    if ((IS_MODE_RCC || IS_MODE_RO6) && !(IN_PHASE_1)) { \
-        auto it = row_map->find(index); \
-        verify(it != row_map->end()); \
-        row = it->second; \
-        verify(row->schema_); \
-    }
+  if ((IS_MODE_RCC || IS_MODE_RO6) && !(IN_PHASE_1)) { \
+    auto &row_map = ((RCCDTxn*)dtxn)->dreqs_.back().row_map; \
+    auto it = row_map.find(index); \
+    verify(it != row_map.end()); \
+    row = it->second; \
+    verify(row->schema_); \
+  }
 
 #define CREATE_ROW(schema, row_data) \
     switch (Config::config_s->mode_) { \

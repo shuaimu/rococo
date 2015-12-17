@@ -4,7 +4,8 @@
 
 namespace rococo {
 
-Commo::Commo(std::vector<std::string> &addrs) {
+Commo::Commo(std::vector<std::string> &addrs)
+    : vec_rpc_cli_(), vec_rpc_proxy_(), phase_three_sent_() {
   verify(addrs.size() > 0);
   rpc_poll_ = new PollMgr(1);
   for (auto &addr : addrs) {
@@ -33,7 +34,8 @@ void Commo::SendStart(parid_t par_id,
   verify(header.p_type);
   SimpleCommand *cmd  = (SimpleCommand*)req.cmd;
   RococoProxy *proxy = vec_rpc_proxy_[par_id];
-  std::function<void(Future*)> cb = [coo, this, callback, cmd, par_id](Future *fu) {
+  std::function<void(Future*)> cb =
+      [coo, this, callback, cmd, par_id] (Future *fu) {
     StartReply reply;
     Log_debug("SendStart callback for %ld from %ld", par_id, coo->coo_id_);
     reply.cmd = cmd;
@@ -43,13 +45,15 @@ void Commo::SendStart(parid_t par_id,
   };
   fuattr.callback = cb;
   Log_debug("SendStart to %ld from %ld", par_id, coo->coo_id_);
-  Future::safe_release(proxy->async_start_pie(header, cmd->input,
-                                              cmd->output_size, fuattr));
+  Future::safe_release(proxy->async_start_pie(header,
+                                              cmd->input,
+                                              cmd->output_size,
+                                              fuattr));
 }
 
 void Commo::SendStart(parid_t par_id, 
                       RequestHeader &header, 
-                      std::vector<Value> &input, 
+                      map<int32_t, Value> &input,
                       int32_t output_size,
                       std::function<void(Future *fu)> &callback) {
   rrr::FutureAttr fuattr;
@@ -70,8 +74,16 @@ void Commo::SendPrepare(groupid_t gid, txnid_t tid,
   Future::safe_release(proxy->async_prepare_txn(tid, sids, fuattr));
 }
 
+void Commo::___LogSent(parid_t pid, txnid_t tid) {
+  auto it = phase_three_sent_.find(std::make_pair(pid, tid));
+  verify(it == phase_three_sent_.end());
+  phase_three_sent_.insert(std::make_pair(pid, tid));
+}
+
 void Commo::SendCommit(parid_t pid, txnid_t tid,
                        std::function<void(Future *fu)> &callback) {
+  ___LogSent(pid, tid);
+
   FutureAttr fuattr;
   fuattr.callback = callback;
   RococoProxy *proxy = vec_rpc_proxy_[pid];
@@ -81,6 +93,7 @@ void Commo::SendCommit(parid_t pid, txnid_t tid,
 
 void Commo::SendAbort(parid_t pid, txnid_t tid,
                        std::function<void(Future *fu)> &callback) {
+//  ___LogSent(pid, tid);
   FutureAttr fuattr;
   fuattr.callback = callback;
   RococoProxy *proxy = vec_rpc_proxy_[pid];

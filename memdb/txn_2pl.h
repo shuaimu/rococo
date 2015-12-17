@@ -56,7 +56,7 @@ class Txn2PL: public Txn {
     rrr::DragonBall *reply_db_;
     mdb::Value *output_buf_;
     rrr::i32 *output_size_buf_;
-    std::vector<mdb::Value> *output_vec_;
+    std::map<int32_t, Value> *output_vec_;
     bool finish_;
 
     bool rw_succ_;
@@ -80,31 +80,36 @@ class Txn2PL: public Txn {
     }
 
    public:
-    PieceStatus(i64 tid, i64 pid, rrr::DragonBall *db, mdb::Value *output,
-                rrr::i32 *output_size, bool *wound,
-                const std::function<int(void)> &wound_callback,
-                Txn2PL* txn) :
-        pid_(pid),
-        num_waiting_(1),
-        num_acquired_(0),
-        rej_(false),
-        reply_db_(db),
-        output_buf_(output),
-        output_size_buf_(output_size),
-        output_vec_(NULL),
-        finish_(false),
-        rw_succ_(false),
-        rw_lock_group_(swap_bits(tid), wound_callback),
-        rm_succ_(false),
-        rm_lock_group_(swap_bits(tid), wound_callback),
-        is_rw_(false),
-        wound_(wound),
-        query_buf_(query_buf_t()),
-        txn_(txn) {
-    }
+//    PieceStatus(i64 tid,
+//                i64 pid,
+//                rrr::DragonBall *db,
+//                mdb::Value *output,
+//                rrr::i32 *output_size,
+//                bool *wound,
+//                const std::function<int(void)> &wound_callback,
+//                Txn2PL* txn)
+//        : pid_(pid),
+//          num_waiting_(1),
+//          num_acquired_(0),
+//          rej_(false),
+//          reply_db_(db),
+//          output_buf_(output),
+//          output_size_buf_(output_size),
+//          output_vec_(NULL),
+//          finish_(false),
+//          rw_succ_(false),
+//          rw_lock_group_(swap_bits(tid), wound_callback),
+//          rm_succ_(false),
+//          rm_lock_group_(swap_bits(tid), wound_callback),
+//          is_rw_(false),
+//          wound_(wound),
+//          query_buf_(query_buf_t()),
+//          txn_(txn) {
+//    }
 
     PieceStatus(i64 tid, i64 pid, rrr::DragonBall *db,
-                std::vector<mdb::Value> *output, bool *wound,
+                std::map<int32_t, mdb::Value> *output,
+                bool *wound,
                 const std::function<int(void)> &wound_callback,
                 Txn2PL* txn) :
         pid_(pid),
@@ -159,9 +164,8 @@ class Txn2PL: public Txn {
       if (output_buf_) {
         verify(output_size_buf_ != NULL);
         *output_size_buf_ = 0;
-      }
-      else if (output_vec_) {
-        output_vec_->resize(0);
+      } else if (output_vec_) {
+//        output_vec_->resize(0);
       }
     }
 
@@ -189,9 +193,10 @@ class Txn2PL: public Txn {
       verify(num_acquired_ <= num_waiting_);
     }
 
-    void get_output(std::vector<mdb::Value> **output_vec,
+    void get_output(std::map<int32_t, mdb::Value> **output_map,
                     mdb::Value **output, rrr::i32 **output_size) {
-      *output_vec = output_vec_;
+      *output_map = output_vec_;
+      verify(output_buf_ == nullptr);
       *output = output_buf_;
       *output_size = output_size_buf_;
     }
@@ -248,10 +253,10 @@ class Txn2PL: public Txn {
   void abort();
   bool commit();
 
-  void init_piece(i64 tid, i64 pid, rrr::DragonBall *db, mdb::Value *output,
-                  rrr::i32 *output_size);
+//  void init_piece(i64 tid, i64 pid, rrr::DragonBall *db, mdb::Value *output,
+//                  rrr::i32 *output_size);
   void init_piece(i64 tid, i64 pid, rrr::DragonBall *db,
-                  std::vector<mdb::Value> *output);
+                  std::map<int32_t, Value> *output);
 
   PieceStatus *get_piece_status(i64 pid);
 
@@ -344,8 +349,7 @@ class Txn2PL: public Txn {
       ResultSet rs = qb.buf[qb.retrieve_index++];
       rs.reset();
       return rs;
-    }
-    else {
+    } else {
       ResultSet rs = do_query_in(tbl, low, high, order);
       qb.buf.push_back(rs);
       return rs;
@@ -372,44 +376,6 @@ class Txn2PL: public Txn {
   }
 };
 
-
-
-class TxnNested: public Txn2PL {
-  Txn *base_;
-  std::unordered_set<Row *> row_inserts_;
-
- public:
-  TxnNested(const TxnMgr *mgr, Txn *base) : Txn2PL(mgr, base->id()),
-                                            base_(base) { }
-
-  virtual symbol_t rtti() const {
-    return symbol_t::TXN_NESTED;
-  }
-
-  virtual void abort();
-  virtual bool commit();
-
-  virtual bool read_column(Row *row, column_id_t col_id, Value *value);
-  virtual bool write_column(Row *row, column_id_t col_id, const Value &value);
-  virtual bool insert_row(Table *tbl, Row *row);
-  virtual bool remove_row(Table *tbl, Row *row);
-
-  virtual ResultSet query(Table *tbl, const MultiBlob &mb);
-  virtual ResultSet query(Table *tbl, const MultiBlob &mb, bool, int64_t) {
-    return query(tbl, mb);
-  }
-  ResultSet query_lt(Table *tbl,
-                     const SortedMultiKey &smk,
-                     symbol_t order = symbol_t::ORD_ASC);
-  ResultSet query_gt(Table *tbl,
-                     const SortedMultiKey &smk,
-                     symbol_t order = symbol_t::ORD_ASC);
-  ResultSet query_in(Table *tbl,
-                     const SortedMultiKey &low,
-                     const SortedMultiKey &high,
-                     symbol_t order = symbol_t::ORD_ASC);
-  ResultSet all(Table *tbl, symbol_t order = symbol_t::ORD_ANY);
-};
 
 
 

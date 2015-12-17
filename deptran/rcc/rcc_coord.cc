@@ -12,7 +12,7 @@ void RCCCoord::deptran_batch_start(TxnChopper *ch) {
 
   int pi;
 
-  std::vector<Value> *input = nullptr;
+  map<int32_t, Value> *input = nullptr;
   int32_t server_id;
   int     res;
   int     output_size;
@@ -112,13 +112,16 @@ void RCCCoord::deptran_start(TxnChopper *ch) {
 
   int pi;
 
-  std::vector<Value> *input = nullptr;
+  map<int32_t, Value> *input = nullptr;
   int32_t server_id;
   int     res;
   int     output_size;
 
   while ((res =
-            ch->next_piece(input, output_size, server_id, pi,
+            ch->next_piece(input,
+                           output_size,
+                           server_id,
+                           pi,
                            header.p_type)) == 0) {
     header.pid = next_pie_id();
 
@@ -230,7 +233,7 @@ void RCCCoord::deptran_finish(TxnChopper *ch) {
     }
   };
 
-  Log::debug(
+  Log_debug(
     "send deptran finish requests to %d servers, tid: %llx, graph size: %d",
     (int)ch->partitions_.size(),
     cmd_id_,
@@ -257,7 +260,7 @@ void RCCCoord::deptran_start_ro(TxnChopper *ch) {
 
   int pi;
 
-  std::vector<Value> *input = nullptr;
+  map<int32_t, Value> *input = nullptr;
   int32_t server_id;
   int     res;
   int     output_size;
@@ -274,8 +277,8 @@ void RCCCoord::deptran_start_ro(TxnChopper *ch) {
       {
         std::lock_guard<std::mutex> lock(this->mtx_);
 
-        std::vector<Value> res;
-        fu->get_reply() >> res;
+        map<int32_t, Value> output;
+        fu->get_reply() >> output;
 
         Log::debug("receive deptran RO start response, tid: %llx, pid: %llx, ",
                    header.tid,
@@ -283,9 +286,9 @@ void RCCCoord::deptran_start_ro(TxnChopper *ch) {
 
         ch->n_pieces_out_++;
 
-        if (ch->read_only_start_callback(pi, NULL, res)) this->deptran_start_ro(
-            ch);
-        else if (ch->n_pieces_out_ == ch->n_pieces_all_) {
+        if (ch->read_only_start_callback(pi, NULL, output)) {
+          this->deptran_start_ro(ch);
+        } else if (ch->n_pieces_out_ == ch->n_pieces_all_) {
           ch->read_only_reset();
           this->deptran_finish_ro(ch);
         }
@@ -305,7 +308,7 @@ void RCCCoord::deptran_finish_ro(TxnChopper *ch) {
   RequestHeader header = gen_header(ch);
   int pi;
 
-  std::vector<Value> *input = nullptr;
+  map<int32_t, Value> *input = nullptr;
   int32_t server_id;
   int     res;
   int     output_size;
@@ -324,7 +327,7 @@ void RCCCoord::deptran_finish_ro(TxnChopper *ch) {
         std::lock_guard<std::mutex> lock(this->mtx_);
 
         int res;
-        std::vector<Value> output;
+        map<int32_t, Value> output;
         fu->get_reply() >> output;
 
         Log::debug(

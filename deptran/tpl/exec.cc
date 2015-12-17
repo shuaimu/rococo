@@ -10,13 +10,14 @@
 namespace rococo {
 int TPLExecutor::start_launch(
     const RequestHeader &header,
-    const std::vector <mdb::Value> &input,
+    const map<int32_t, Value> &input,
     const rrr::i32 &output_size,
     rrr::i32 *res,
-    std::vector <mdb::Value> *output,
+    map<int32_t, Value> *output,
     rrr::DeferredReply *defer) {
   verify(mdb_txn_ != nullptr);
-  verify(this->mdb_txn_->rtti() == mdb::symbol_t::TXN_2PL);
+  verify(mdb_txn_->rtti() == mdb::symbol_t::TXN_2PL);
+  verify(phase_ <= 1);
 
   DragonBall *db = new DragonBall(1, [defer, res]() {
     defer->reply();
@@ -24,35 +25,35 @@ int TPLExecutor::start_launch(
 
   mdb::Txn2PL *txn = (mdb::Txn2PL *) mdb_txn_;
   if (txn->is_wound()) {
-    output->resize(0);
     *res = REJECT;
     db->trigger();
   } else {
-    txn->init_piece(header.tid, header.pid, db, output);
+    txn->init_piece(header.tid,
+                    header.pid,
+                    db,
+                    output);
 
     Log_debug("get txn handler and start reg lock, txn_id: %lx, pie_id: %lx",
               header.tid, header.pid);
     auto entry = txn_reg_->get(header);
+    map<int32_t, Value> no_use;
     entry.txn_handler(this,
                       dtxn_,
                       header,
-                      input.data(),
-                      input.size(),
+                      const_cast<map<int32_t, Value>&>(input),
                       res,
-                      NULL/*output*/,
-                      NULL/*output_size*/,
-                      NULL);
+                      no_use/*output*/,
+                      NULL/*output_size*/);
   }
   return 0;
 }
 
 std::function<void(void)> TPLExecutor::get_2pl_succ_callback(
     const RequestHeader &header,
-    const mdb::Value *input,
-    rrr::i32 input_size,
+    const map<int32_t, Value> &input,
     rrr::i32 *res,
     mdb::Txn2PL::PieceStatus *ps) {
-  return [header, input, input_size, res, ps, this]() {
+  return [header, input, res, ps, this]() {
     Log_debug("lock acquired call back, txn_id: %lx, pie_id: %lx, p_type: %d, ",
               header.tid, header.pid, header.p_type);
     Log_debug("succ 1 callback: PS: %p", ps);
@@ -69,36 +70,36 @@ std::function<void(void)> TPLExecutor::get_2pl_succ_callback(
         ps->remove_output();
 
         Log::debug("rejected");
-      }
-      else {
-        std::vector <mdb::Value> *output_vec;
+      } else {
+        std::map <int32_t, mdb::Value> *output_vec;
         mdb::Value *output;
         rrr::i32 *output_size;
 
         ps->get_output(&output_vec, &output, &output_size);
 
         if (output_vec != NULL) {
-          rrr::i32 output_vec_size = output_vec->size();
+          rrr::i32 output_vec_size;
           txn_reg_->get(header).txn_handler(this,
                                             dtxn_,
                                             header,
-                                            input,
-                                            input_size,
+                                            const_cast<map<int32_t, Value>&>
+                                            (input),
                                             res,
-                                            output_vec->data(),
-                                            &output_vec_size,
-                                            NULL);
-          output_vec->resize(output_vec_size);
+                                            *output_vec,
+                                            &output_vec_size);
+//          output_vec->resize(output_vec_size);
         } else {
+          verify(output == nullptr);
+          verify(0);
+          std::map <int32_t, mdb::Value> no_use;
           txn_reg_->get(header).txn_handler(this,
                                             dtxn_,
                                             header,
-                                            input,
-                                            input_size,
+                                            const_cast<map<int32_t, Value>&>
+                                            (input),
                                             res,
-                                            output,
-                                            output_size,
-                                            NULL);
+                                            no_use,
+                                            output_size);
         }
       }
 
@@ -111,10 +112,9 @@ std::function<void(void)> TPLExecutor::get_2pl_succ_callback(
 
 std::function<void(void)> TPLExecutor::get_2pl_proceed_callback(
     const RequestHeader &header,
-    const mdb::Value *input,
-    rrr::i32 input_size,
+    const map<int32_t, Value> &input,
     rrr::i32 *res) {
-  return [header, input, input_size, res, this]() {
+  return [header, input, res, this]() {
     Log_debug("PROCEED WITH COMMIT: tid: %ld, pid: %ld, p_type: %d, no lock",
               header.tid, header.pid, header.p_type);
 //        verify(this->mdb_txn_ != nullptr);
@@ -128,37 +128,36 @@ std::function<void(void)> TPLExecutor::get_2pl_proceed_callback(
       *res = REJECT;
       ps->remove_output();
       Log::debug("rejected");
-    }
-    else {
-      std::vector <mdb::Value> *output_vec;
+    } else {
+      map<int32_t, mdb::Value> *output_vec;
       mdb::Value *output;
       rrr::i32 *output_size;
 
       ps->get_output(&output_vec, &output, &output_size);
 
       if (output_vec != NULL) {
-        rrr::i32 output_vec_size = output_vec->size();
+        rrr::i32 output_vec_size;
         txn_reg_->get(header).txn_handler(this,
                                           dtxn_,
                                           header,
-                                          input,
-                                          input_size,
+                                          const_cast<map<int32_t, Value>&>
+                                          (input),
                                           res,
-                                          output_vec->data(),
-                                          &output_vec_size,
-                                          NULL);
-        output_vec->resize(output_vec_size);
-      }
-      else {
+                                          *output_vec,
+                                          &output_vec_size);
+//        output_vec->resize(output_vec_size);
+      } else {
+        verify(output == nullptr);
+        verify(0);
+        map<int32_t, mdb::Value> no_use;
         txn_reg_->get(header).txn_handler(this,
                                           dtxn_,
                                           header,
-                                          input,
-                                          input_size,
+                                          const_cast<map<int32_t, Value>&>
+                                          (input),
                                           res,
-                                          output,
-                                          output_size,
-                                          NULL);
+                                          no_use,
+                                          output_size);
       }
     }
 
@@ -195,7 +194,7 @@ std::function<void(void)> TPLExecutor::get_2pl_fail_callback(
 int TPLExecutor::prepare() {
   auto txn = (mdb::Txn2PL *) mdb_txn_;
   verify(txn != NULL);
-  verify(Config::config_s->mode_ == MODE_2PL);
+//  verify(Config::config_s->mode_ == MODE_2PL);
 
   if (txn->commit_prepare())
     return SUCCESS;
@@ -205,10 +204,11 @@ int TPLExecutor::prepare() {
 
 
 int TPLExecutor::commit() {
-  verify(mdb_txn_ != NULL);
-  verify(mdb_txn_ == sched_->del_mdb_txn(cmd_id_));
+  verify(mdb_txn_ != nullptr);
+  verify(mdb_txn_ == sched_->RemoveMTxn(cmd_id_));
   mdb_txn_->commit();
   delete mdb_txn_;
+  mdb_txn_ = nullptr;
   return SUCCESS;
 }
 

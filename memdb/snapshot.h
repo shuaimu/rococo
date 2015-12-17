@@ -188,12 +188,12 @@ public:
     }
 
     bool readonly() const {
-        assert(this != nullptr);
+//        assert(this != nullptr);
         return ssg_->writer != this;
     }
 
     bool writable() const {
-        assert(this != nullptr);
+//        assert(this != nullptr);
         return ssg_->writer == this;
     }
 

@@ -11,126 +11,134 @@ class TxnChopper;
 class TxnRequest;
 class BatchStartArgsHelper;
 
-class TpccChopper : public TxnChopper {
-protected:
-    typedef struct {
-        size_t ol_cnt;
-        bool piece_0_dist;
-        bool *piece_items;
-        bool *piece_stocks;
-    } new_order_dep_t;
+class TpccChopper: public TxnChopper {
+ protected:
+  typedef struct {
+    size_t ol_cnt;
+    bool piece_0_dist;
+    bool *piece_items;
+    bool *piece_stocks;
+  } new_order_dep_t;
 
-    typedef struct {
-        bool piece_warehouse;
-        bool piece_district;
-        bool piece_last2id;
-        bool piece_ori_last2id;
-    } payment_dep_t;
+  typedef struct {
+    bool piece_warehouse;
+    bool piece_district;
+    bool piece_last2id;
+    bool piece_ori_last2id;
+  } payment_dep_t;
 
-    typedef struct {
-        bool piece_last2id;
-        bool piece_ori_last2id;
-        bool piece_order;
-    } order_status_dep_t;
+  typedef struct {
+    bool piece_last2id;
+    bool piece_ori_last2id;
+    bool piece_order;
+  } order_status_dep_t;
 
-    //typedef struct {
-    //    size_t d_cnt;
-    //    bool *piece_new_orders;
-    //    bool *piece_orders;
-    //    bool *piece_order_lines;
-    //} delivery_dep_t;
-    typedef struct {
-        bool piece_new_orders;
-        bool piece_orders;
-        bool piece_order_lines;
-    } delivery_dep_t;
+  //typedef struct {
+  //    size_t d_cnt;
+  //    bool *piece_new_orders;
+  //    bool *piece_orders;
+  //    bool *piece_order_lines;
+  //} delivery_dep_t;
+  typedef struct {
+    bool piece_new_orders;
+    bool piece_orders;
+    bool piece_order_lines;
+  } delivery_dep_t;
 
-    typedef struct {
-        int threshold;
-        int w_id;
-    } stock_level_dep_t;
+  typedef struct {
+    int threshold;
+    int w_id;
+  } stock_level_dep_t;
 
-    union {
-        new_order_dep_t new_order_dep_;
-        payment_dep_t payment_dep_;
-        order_status_dep_t order_status_dep_;
-        delivery_dep_t delivery_dep_;
-        stock_level_dep_t stock_level_dep_;
-    };
+  union {
+    new_order_dep_t new_order_dep_;
+    payment_dep_t payment_dep_;
+    order_status_dep_t order_status_dep_;
+    delivery_dep_t delivery_dep_;
+    stock_level_dep_t stock_level_dep_;
+  };
 
-    // new order
-    virtual void new_order_shard(const char *tb, 
-            const std::vector<mdb::Value> &input, 
-            uint32_t &site, int cnt = 0);
+  // new order
+  virtual void new_order_shard(const char *tb,
+                               const std::vector<mdb::Value> &input,
+                               uint32_t &site, int cnt = 0);
 
-    virtual void new_order_init(TxnRequest &req);
+  virtual void new_order_init(TxnRequest &req);
 
-    virtual bool new_order_callback(int pi, int res, 
-            const Value *output, uint32_t output_size);
+  virtual bool new_order_callback(int pi,
+                                  int res,
+                                  const Value *output,
+                                  uint32_t output_size);
 
-    virtual void new_order_retry();
+  virtual void new_order_retry();
 
-    // payment
-    virtual void payment_shard(const char *tb, 
-            const std::vector<mdb::Value> &input, uint32_t &site);
-    
-    virtual void payment_init(TxnRequest &req);
+  // payment
+  virtual void payment_shard(const char *tb,
+                             const std::vector<mdb::Value> &input,
+                             uint32_t &site);
 
-    virtual bool payment_callback(int pi, int res, 
-            const Value *output, uint32_t output_size);
+  virtual void payment_init(TxnRequest &req);
 
-    virtual void payment_retry();
+  virtual bool payment_callback(int pi, int res,
+                                const Value *output, uint32_t output_size);
 
-    // stock level
-    virtual void stock_level_shard(const char *tb, 
-            const std::vector<mdb::Value> &input, uint32_t &site);
+  virtual void payment_retry();
 
-    virtual void stock_level_init(TxnRequest &req);
+  // stock level
+  virtual void stock_level_shard(const char *tb,
+                                 const std::vector<mdb::Value> &input,
+                                 uint32_t &site);
 
-    virtual bool stock_level_callback(int pi, int res, 
-            const Value *output, uint32_t output_size);
+  virtual void stock_level_shard(const char *tb,
+                                 const map<int32_t, mdb::Value> &input,
+                                 uint32_t &site);
 
-    virtual void stock_level_retry();
+  virtual void stock_level_init(TxnRequest &req);
 
-    // delivery
-    virtual void delivery_shard(const char *tb, 
-            const std::vector<mdb::Value> &input, 
-            uint32_t &site, int cnt);
-    
-    virtual void delivery_init(TxnRequest &req);
+  virtual bool stock_level_callback(int pi, int res,
+                                    const Value *output, uint32_t output_size);
 
-    virtual bool delivery_callback(int pi, int res, 
-            const Value *output, uint32_t output_size);
+  virtual void stock_level_retry();
 
-    virtual void delivery_retry();
+  // delivery
+  virtual void delivery_shard(const char *tb,
+                              const std::vector<mdb::Value> &input,
+                              uint32_t &site, int cnt);
 
-    // order status
-    virtual void order_status_shard(const char *tb, 
-            const std::vector<mdb::Value> &input, uint32_t &site);
+  virtual void delivery_init(TxnRequest &req);
 
-    virtual void order_status_init(TxnRequest &req);
+  virtual bool delivery_callback(int pi, int res,
+                                 const Value *output, uint32_t output_size);
 
-    virtual bool order_status_callback(int pi, int res, 
-            const Value *output, uint32_t output_size);
+  virtual void delivery_retry();
 
-    virtual void order_status_retry();
+  // order status
+  virtual void order_status_shard(const char *tb,
+                                  const std::vector<mdb::Value> &input,
+                                  uint32_t &site);
 
-public:
-    TpccChopper();
+  virtual void order_status_init(TxnRequest &req);
 
-    virtual void init(TxnRequest &req);
+  virtual bool order_status_callback(int pi, int res,
+                                     const Value *output, uint32_t output_size);
 
-    virtual bool start_callback(const std::vector<int> &pi, 
-            int res, BatchStartArgsHelper &bsah);
+  virtual void order_status_retry();
 
-    virtual bool start_callback(int pi, int res, 
-            const std::vector<mdb::Value> &output);
+ public:
+  TpccChopper();
 
-    virtual bool is_read_only();
+  virtual void init(TxnRequest &req);
+  virtual bool start_callback(const std::vector<int> &pi,
+                              int res,
+                              BatchStartArgsHelper &bsah);
+  virtual bool start_callback(int pi,
+                              int res,
+                              map<int32_t, Value> &output);
+  virtual bool is_read_only();
 
-    virtual void retry();
+  virtual void retry();
 
-    virtual ~TpccChopper();
+  virtual ~TpccChopper();
 };
 
 }

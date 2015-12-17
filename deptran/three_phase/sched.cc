@@ -9,17 +9,17 @@ namespace rococo {
 
 int ThreePhaseSched::OnPhaseOneRequest(
     const RequestHeader &header,
-    const std::vector<mdb::Value> &input,
+    const map<int32_t, Value> &input,
     const rrr::i32 &output_size,
     rrr::i32 *res,
-    std::vector<mdb::Value> *output,
+    map<int32_t, Value> *output,
     rrr::DeferredReply *defer) {
   auto exec = (ThreePhaseExecutor*) GetOrCreateExecutor(header.tid);
   exec->start_launch(header,
-                     input,
+                     const_cast<map<int32_t, Value>&>(input),
                      output_size,
                      res,
-                     output,
+                     *output,
                      defer);
   defer->reply();
   return 0;
@@ -35,13 +35,13 @@ int ThreePhaseSched::OnPhaseTwoRequest(
   return 0;
 }
 
-int ThreePhaseSched::OnPhaseThreeRequest(
-    cmdid_t cmd_id,
-    int commit_or_abort,
-    rrr::i32 *res,
-    rrr::DeferredReply *defer
-) {
+int ThreePhaseSched::OnPhaseThreeRequest(cmdid_t cmd_id,
+                                         int commit_or_abort,
+                                         rrr::i32 *res,
+                                         rrr::DeferredReply *defer) {
   auto exec = (ThreePhaseExecutor*)GetExecutor(cmd_id);
+  verify(exec->phase_ < 3);
+  exec->phase_ = 3;
   if (commit_or_abort == SUCCESS) {
     exec->commit_launch(res, defer);
   } else if (commit_or_abort == REJECT) {
@@ -49,6 +49,7 @@ int ThreePhaseSched::OnPhaseThreeRequest(
   } else {
     verify(0);
   }
+  DestroyExecutor(cmd_id);
   return 0;
 }
 

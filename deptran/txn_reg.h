@@ -15,12 +15,11 @@ typedef std::function<void(
     Executor* exec,
     DTxn *dtxn,
     const RequestHeader &header,
-    const Value *input,
-    rrr::i32 input_size,
+    map<int32_t, Value> &input,
     rrr::i32 *res,
-    Value *output,
-    rrr::i32 *output_size,
-    row_map_t *row_map
+    map<int32_t, Value> &output,
+    rrr::i32 *output_size//,
+//    row_map_t *row_map
 )> TxnHandler;
 
 typedef enum {

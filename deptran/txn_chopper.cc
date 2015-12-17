@@ -63,7 +63,7 @@ Command *TxnChopper::GetNextSubCmd() {
 }
 
 int TxnChopper::next_piece(
-    std::vector<mdb::Value> *&input,
+    map<int32_t, Value>* &input,
     int &output_size,
     int32_t &server_id,
     int32_t &pi,
@@ -123,7 +123,7 @@ bool TxnChopper::HasMoreSubCmd() {
 }
 
 bool TxnChopper::start_callback(int pi,
-                                std::vector<mdb::Value> &output,
+                                map<int32_t, mdb::Value> &output,
                                 bool is_defer) {
   verify(0);
   if (is_defer && output_size_[pi] != 0)
@@ -135,7 +135,7 @@ bool TxnChopper::start_callback(int pi,
 }
 
 bool TxnChopper::start_callback(int pi,
-                                const ChopStartResponse &res) {
+                                ChopStartResponse &res) {
   verify(0);
   if (res.is_defered && output_size_[pi] != 0)
     early_return_ = false;
@@ -150,7 +150,9 @@ void TxnChopper::read_only_reset() {
   retry();
 }
 
-bool TxnChopper::read_only_start_callback(int pi, int *res, const std::vector<mdb::Value> &output) {
+bool TxnChopper::read_only_start_callback(int pi,
+                                          int *res,
+                                          map<int32_t, mdb::Value> &output) {
   verify(pi < n_pieces_all_);
   if (res == NULL) { // phase one, store outputs only
     outputs_.resize(n_pieces_all_);

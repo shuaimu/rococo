@@ -12,14 +12,14 @@ void TpccPiece::reg_delivery() {
       // including the vertex entry
 
       Log::debug("TPCC_DELIVERY, piece: %d", TPCC_DELIVERY_0);
-      verify(input_size == 2);
+      verify(input.size() == 2);
       i32 oi = 0;
       Value buf;
 //        mdb::Txn *txn = DTxnMgr::get_sole_mgr()->get_mdb_txn(header);
                          mdb::Txn *txn = dtxn->mdb_txn_;
       //cell_locator_t cl(TPCC_TB_NEW_ORDER, 3);
       mdb::Row *r = NULL;
-      mdb::Table *tbl = dtxn->get_table(TPCC_TB_NEW_ORDER);
+      mdb::Table *tbl = dtxn->GetTable(TPCC_TB_NEW_ORDER);
       if (!(IS_MODE_RCC || IS_MODE_RO6) ||
               ((IS_MODE_RCC || IS_MODE_RO6) && IN_PHASE_1)) {
           // non-rcc || rcc start request
@@ -45,7 +45,7 @@ void TpccPiece::reg_delivery() {
 
                   std::function<void(void)> succ_callback =
                       ((TPLExecutor*) exec)->get_2pl_succ_callback(
-                          header, input, input_size, res, ps);
+                          header, input, res, ps);
 
                   std::function<void(void)> fail_callback =
                       ((TPLExecutor*) exec)->get_2pl_fail_callback(
@@ -63,7 +63,6 @@ void TpccPiece::reg_delivery() {
           }
       }
 
-      verify((row_map != nullptr) == (IS_MODE_RCC || IS_MODE_RO6));
       if (IS_MODE_RCC || IS_MODE_RO6) { // deptran
           if (IN_PHASE_1) { // deptran start req, top half
               if (r) { // if find a row
@@ -76,7 +75,8 @@ void TpccPiece::reg_delivery() {
                   tbl->remove(r, false); // don't release the row
               }
           } else { // deptran finish
-              for (auto &it : *row_map) {
+            auto &row_map = ((RCCDTxn*)dtxn)->dreqs_.back().row_map;
+              for (auto &it : row_map) {
                   it.second->release();
               }
           }
@@ -100,8 +100,7 @@ void TpccPiece::reg_delivery() {
           DF_NO) {
 
       Log::debug("TPCC_DELIVERY, piece: %d", TPCC_DELIVERY_1);
-      verify(row_map == NULL);
-      verify(input_size == 4);
+      verify(input.size() == 4);
       i32 oi = 0;
       Value buf;
 //        mdb::Txn *txn = DTxnMgr::get_sole_mgr()->get_mdb_txn(header);
@@ -143,8 +142,7 @@ void TpccPiece::reg_delivery() {
           DF_NO) {
 
       Log::debug("TPCC_DELIVERY, piece: %d", TPCC_DELIVERY_2);
-      verify(row_map == NULL);
-      verify(input_size == 3);
+      verify(input.size() == 3);
       i32 oi = 0;
       Value buf;
 //        mdb::Txn *txn = DTxnMgr::get_sole_mgr()->get_mdb_txn(header);
@@ -183,7 +181,7 @@ void TpccPiece::reg_delivery() {
 
           std::function<void(void)> succ_callback =
               ((TPLExecutor*) exec)->get_2pl_succ_callback(
-                  header, input, input_size, res, ps);
+                  header, input, res, ps);
 
           std::function<void(void)> fail_callback =
               ((TPLExecutor*) exec)->get_2pl_fail_callback(
@@ -237,7 +235,7 @@ void TpccPiece::reg_delivery() {
           TPCC_DELIVERY_3, // W customer
           DF_REAL) {
       Log::debug("TPCC_DELIVERY, piece: %d", TPCC_DELIVERY_3);
-      verify(input_size == 4);
+      verify(input.size() == 4);
       i32 oi = 0;
       Value buf;
 //        mdb::Txn *txn = DTxnMgr::get_sole_mgr()->get_mdb_txn(header);

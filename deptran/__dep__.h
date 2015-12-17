@@ -22,6 +22,7 @@ using std::unordered_map;
 using std::string;
 using std::vector;
 using std::set;
+using std::pair;
 
 // system library
 #include <sys/types.h>
@@ -85,6 +86,7 @@ using rrr::Marshal;
 #include "memdb/txn.h"
 #include "memdb/txn_2pl.h"
 #include "memdb/txn_occ.h"
+#include "memdb/txn_unsafe.h"
 #include "memdb/utils.h"
 #include "memdb/row.h"
 using mdb::Value;

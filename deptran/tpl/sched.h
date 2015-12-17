@@ -15,10 +15,10 @@ class TPLSched: public ThreePhaseSched {
 
   virtual int OnPhaseOneRequest(
       const RequestHeader &header,
-      const std::vector<mdb::Value> &input,
+      const map<int32_t, Value> &input,
       const rrr::i32 &output_size,
       rrr::i32 *res,
-      std::vector<mdb::Value> *output,
+      map<int32_t, Value> *output,
       rrr::DeferredReply *defer);
 
   virtual mdb::Txn *get_mdb_txn(const i64 tid);
