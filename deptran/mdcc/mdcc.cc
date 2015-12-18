@@ -17,11 +17,9 @@ namespace mdcc {
   }
 
   void MdccAcceptorService::Propose(const ProposeRequest &req, ProposeResponse *res, rrr::DeferredReply *defer) {
-
   }
 
-  void mdcc::MdccAcceptorService::ProposeFast(const ProposeRequest &req, ProposeResponse *res, rrr::DeferredReply *defer) {
-
+  void MdccAcceptorService::ProposeFast(const ProposeRequest &req, ProposeResponse *res, rrr::DeferredReply *defer) {
   }
 
   void MdccAcceptorService::Decide(const Result &result, rrr::DeferredReply *defer) {
