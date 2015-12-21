@@ -9,8 +9,8 @@
 
 namespace mdcc {
 using namespace rococo;
-class MdccCoord : public ThreePhaseCoord {
-  using ThreePhaseCoord::ThreePhaseCoord;
+class MdccCoord : public ThreePhaseCoordinator {
+  using ThreePhaseCoordinator::ThreePhaseCoordinator;
  public:
   virtual void do_one(TxnRequest&);
   virtual void deptran_start(TxnChopper *ch);
