@@ -13,6 +13,10 @@ using mdb::Row;
 using mdb::Table;
 using mdb::column_id_t;
 
+#define TXN_BYPASS (true)
+#define TXN_SAFE   (false)
+#define TXN_DEFERRED (true)
+#define TXN_INSTANT  (false)
 
 #define IS_MODE_RCC (Config::GetConfig()->get_mode() == MODE_RCC)
 #define IS_MODE_RO6 (Config::GetConfig()->get_mode() == MODE_RO6)
@@ -60,10 +64,16 @@ class DTxn {
   Recorder *recorder_ = NULL;
   TxnRegistry *txn_reg_;
 
+  map<int64_t, mdb::Row*> context_row_;
+  map<int64_t, Value> context_value_;
+  map<int64_t, mdb::ResultSet> context_rs_;
+
   DTxn() = delete;
 
   DTxn(i64 tid, Scheduler *mgr)
-      : tid_(tid), mgr_(mgr), phase_(0), mdb_txn_(nullptr) { }
+      : tid_(tid), mgr_(mgr),
+        phase_(0), mdb_txn_(nullptr),
+        context_row_(), context_value_(), context_rs_() { }
 
   virtual mdb::Row *create(const mdb::Schema *schema,
                            const std::vector<mdb::Value> &values) = 0;
@@ -71,22 +81,26 @@ class DTxn {
   virtual bool ReadColumn(mdb::Row *row,
                           mdb::column_id_t col_id,
                           Value *value,
-                          bool unsafe = false);
+                          bool unsafe = false,
+                          bool deferred = true);
 
   virtual bool ReadColumns(Row *row,
                            const std::vector<column_id_t> &col_ids,
                            std::vector<Value> *values,
-                           bool unsafe = false);
+                           bool unsafe = false,
+                           bool deferred = true);
 
   virtual bool WriteColumn(Row *row,
                            column_id_t col_id,
                            const Value &value,
-                           bool unsafe = false);
+                           bool unsafe = false,
+                           bool deferred = true);
 
   virtual bool WriteColumns(Row *row,
                             const std::vector<column_id_t> &col_ids,
                             const std::vector<Value> &values,
-                            bool unsafe = false);
+                            bool unsafe = false,
+                            bool deferred = true);
 
   virtual bool InsertRow(Table *tbl, Row *row);
 
@@ -122,22 +136,20 @@ class DTxn {
 //  );
 
 
-  virtual mdb::ResultSet Query(Table *tbl,
-                               const mdb::Value &kv,
-                               bool retrieve,
-                               int64_t pid);
+//  virtual mdb::ResultSet Query(Table *tbl,
+//                               const mdb::Value &kv,
+//                               bool retrieve,
+//                               int64_t pid);
 
-  virtual mdb::ResultSet Query(mdb::Table *tbl,
-                               const mdb::MultiBlob &mb,
-                               bool retrieve,
-                               int64_t pid);
+  virtual mdb::Row* Query(mdb::Table *tbl,
+                          const mdb::MultiBlob &mb,
+                          int64_t row_context_id = 0);
 
   virtual mdb::ResultSet QueryIn(Table *tbl,
                                  const mdb::MultiBlob &low,
                                  const mdb::MultiBlob &high,
-                                 bool retrieve,
-                                 int64_t pid,
-                                 mdb::symbol_t order = mdb::symbol_t::ORD_ASC);
+                                 mdb::symbol_t order = mdb::symbol_t::ORD_ASC,
+                                 int rs_context_id = 0);
 
   mdb::Table *GetTable(const std::string &tbl_name) const;
 
