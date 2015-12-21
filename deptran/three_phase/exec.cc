@@ -2,6 +2,7 @@
 #include "../multi_value.h"
 #include "../rcc/dep_graph.h"
 #include "../rcc/graph_marshaler.h"
+#include "../rcc_rpc.h"
 #include "exec.h"
 #include "sched.h"
 
@@ -10,7 +11,7 @@ namespace rococo {
 ThreePhaseExecutor::~ThreePhaseExecutor() {
 }
 
-int ThreePhaseExecutor::start_launch(
+int ThreePhaseExecutor::StartLaunch(
     const RequestHeader &header,
     const map<int32_t, Value> &input,
     const rrr::i32 &output_size,
@@ -107,8 +108,7 @@ void ThreePhaseExecutor::execute(const RequestHeader &header,
                                     header,
                                     const_cast<map<int32_t, Value>&>(input),
                                     res,
-                                    output,
-                                    output_size);
+                                    output);
 }
 
 void ThreePhaseExecutor::execute(
@@ -123,8 +123,7 @@ void ThreePhaseExecutor::execute(
                                     header,
                                     const_cast<map<int32_t, Value>&>(input),
                                     res,
-                                    output,
-                                    &output_size);
+                                    output);
 }
 
 } // namespace rococo;

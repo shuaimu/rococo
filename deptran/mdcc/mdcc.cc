@@ -14,11 +14,12 @@ void MdccLearnerService::Learn(const Result& r) {
 void MdccLeaderService::Propose(const ProposeRequest &req, ProposeResponse *res, rrr::DeferredReply *defer) {
 }
 
-  void MdccAcceptorService::Propose(const ProposeRequest &req, ProposeResponse *res, rrr::DeferredReply *defer) {
-  }
+void MdccAcceptorService::Propose(const ProposeRequest &req, ProposeResponse *res, rrr::DeferredReply *defer) {
+}
 
-  void MdccAcceptorService::ProposeFast(const ProposeRequest &req, ProposeResponse *res, rrr::DeferredReply *defer) {
-  }
+void MdccAcceptorService::ProposeFast(const ProposeRequest &req, ProposeResponse *res, rrr::DeferredReply *defer) {
+}
+
 void MdccLeaderService::Recover() {
 }
 
