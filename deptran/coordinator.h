@@ -45,6 +45,7 @@ class Coordinator {
 //  map<innid_t, Command*> cmd_map_;
   map<innid_t, bool> start_ack_map_;
   Sharding* sharding_ = nullptr;
+  TxnRegistry *txn_reg_ = nullptr;
 
   std::vector<int> site_prepare_;
   std::vector<int> site_commit_;
