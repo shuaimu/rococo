@@ -1,3 +1,4 @@
+#include <deptran/mdcc/coordinator.h>
 #include "__dep__.h"
 #include "frame.h"
 #include "config.h"
@@ -45,7 +46,7 @@
 #include "tpl/sched.h"
 #include "occ/sched.h"
 
-#include "deptran/mdcc/mdcc_coord.h"
+#include "coordinator.h"
 
 
 namespace rococo {
@@ -138,9 +139,9 @@ Coordinator* Frame::CreateCoord(cooid_t coo_id,
                            batch_start);
       break;
     case MODE_MDCC:
-      coo = new mdcc::MdccCoord(coo_id, servers,
-                          benchmark, mode,
-                          ccsi, id, batch_start);
+      coo = new mdcc::MdccCoordinator(coo_id, servers,
+                                      benchmark, mode,
+                                      ccsi, id, batch_start);
       break;
     default:
       verify(0);
