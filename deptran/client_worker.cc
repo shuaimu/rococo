@@ -3,10 +3,6 @@
 
 namespace rococo {
 
-//ClientWorker::ClientWorker() {
-//  txn_req_factory_ = new TxnRequestFactory(Config::GetConfig()->sharding_);
-//}
-
 ClientWorker::~ClientWorker() {
   if (txn_req_factory_) {
     delete txn_req_factory_;
@@ -67,9 +63,6 @@ void ClientWorker::work() {
   delete timer_;
   return;
 }
-
-
-
 
 } // namespace rococo
 
