@@ -1,4 +1,3 @@
-#include <deptran/mdcc/coordinator.h>
 #include "__dep__.h"
 #include "frame.h"
 #include "config.h"
@@ -45,8 +44,8 @@
 
 #include "tpl/sched.h"
 #include "occ/sched.h"
-
 #include "coordinator.h"
+#include "deptran/mdcc/coordinator.h"
 
 
 namespace rococo {
