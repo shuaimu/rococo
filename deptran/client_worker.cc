@@ -4,7 +4,7 @@
 namespace rococo {
 
 //ClientWorker::ClientWorker() {
-//  txn_req_factory_ = new TxnRequestFactory(Config::GetConfig()->sharding_);
+//  txn_req_factory_ = new TxnGenerator(Config::GetConfig()->sharding_);
 //}
 
 ClientWorker::~ClientWorker() {
