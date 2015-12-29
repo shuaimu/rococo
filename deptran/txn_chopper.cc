@@ -22,43 +22,72 @@ set<parid_t> TxnChopper::GetPars() {
 
 
 Command *TxnChopper::GetNextSubCmd() {
-  if (n_pieces_out_ == n_pieces_all_) {
+  if (n_pieces_out_ == GetNPieceAll()) {
     return nullptr;
   }
   SimpleCommand *cmd = nullptr;
 
   auto sz = status_.size();
   verify(sz > 0);
-  if (cmd_vec_.size() < sz) {
-    cmd_vec_.resize(sz);
-  }
+//  if (cmd_vec_.size() < sz) {
+//    cmd_vec_.resize(sz);
+//  }
 
-  for (int i = 0; i < sz; i++) {
+  for (auto &kv : status_) {
+    auto pi = kv.first;
+    auto &status = kv.second;
 
-    if (status_[i] == READY) {
-      status_[i] = INIT;
+    if (status == READY) {
+      status = INIT;
       cmd = new SimpleCommand();
-      cmd->inn_id_ = i;
-      cmd->par_id = sharding_[i];
-      cmd->type_ = p_types_[i];
-      cmd->input = inputs_[i];
-      cmd->output_size = output_size_[i];
+      cmd->inn_id_ = pi;
+      cmd->par_id = sharding_[pi];
+      cmd->type_ = pi;
+      cmd->input = inputs_[pi];
+      cmd->output_size = output_size_[pi];
       cmd->root_ = this;
-      cmd_vec_[i] = cmd;
+      cmd_[pi] = cmd;
 
-      partitions_.insert(sharding_[i]);
+      partitions_.insert(cmd->par_id);
 
       Log_debug("getting subcmd i: %d, thread id: %x",
-                i, std::this_thread::get_id());
+                pi, std::this_thread::get_id());
 
-      verify(status_[i] == INIT);
-      status_[i] = ONGOING;
+      verify(status_[pi] == INIT);
+      status_[pi] = ONGOING;
 
       verify(cmd->type_ != 0);
       n_pieces_out_++;
       return cmd;
     }
   }
+
+//  for (int i = 0; i < sz; i++) {
+//
+//    if (status_[i] == READY) {
+//      status_[i] = INIT;
+//      cmd = new SimpleCommand();
+//      cmd->inn_id_ = i;
+//      cmd->par_id = sharding_[i];
+//      cmd->type_ = p_types_[i];
+//      cmd->input = inputs_[i];
+//      cmd->output_size = output_size_[i];
+//      cmd->root_ = this;
+//      cmd_vec_[i] = cmd;
+//
+//      partitions_.insert(sharding_[i]);
+//
+//      Log_debug("getting subcmd i: %d, thread id: %x",
+//                i, std::this_thread::get_id());
+//
+//      verify(status_[i] == INIT);
+//      status_[i] = ONGOING;
+//
+//      verify(cmd->type_ != 0);
+//      n_pieces_out_++;
+//      return cmd;
+//    }
+//  }
   return cmd;
 }
 
@@ -68,44 +97,39 @@ int TxnChopper::next_piece(
     int32_t &server_id,
     int32_t &pi,
     int32_t &p_type) {
-
-  if (n_pieces_out_ == n_pieces_all_) {
-    return 2;
-  }
-
-  int status = 1;
-  for (int i = 0; i < status_.size(); i++) {
-    if (status_[i] == READY) {
-      server_id = sharding_[i];
-      partitions_.insert(server_id);
-      pi = i;
-      p_type = p_types_[i];
-      input = &inputs_[i];
-      verify(status_[i] == READY);
-      status_[i] = ONGOING;
-      output_size = output_size_[i];
-      return 0;
-    } else if (status_[i] == ONGOING) {
-    } else if (status_[i] == WAITING) {
-      status = -1;
-    }
-  }
-
-  if (status == ONGOING) {
-    return 1;   // all pieces are ongoing.
-  } else if (status == WAITING) {
-    return -1;  // some pieces are not ready.
-  } else {
-    verify(0);
-  }
-}
-
-int TxnChopper::batch_next_piece(BatchRequestHeader *batch_header,
-                                 std::vector<mdb::Value> &input,
-                                 int32_t &server_id, std::vector<int> &pi,
-                                 Coordinator *coo) {
   verify(0);
+//
+//  if (n_pieces_out_ == n_pieces_all_) {
+//    return 2;
+//  }
+//
+//  int status = 1;
+//  for (int i = 0; i < status_.size(); i++) {
+//    if (status_[i] == READY) {
+//      server_id = sharding_[i];
+//      partitions_.insert(server_id);
+//      pi = i;
+//      p_type = p_types_[i];
+//      input = &inputs_[i];
+//      verify(status_[i] == READY);
+//      status_[i] = ONGOING;
+//      output_size = output_size_[i];
+//      return 0;
+//    } else if (status_[i] == ONGOING) {
+//    } else if (status_[i] == WAITING) {
+//      status = -1;
+//    }
+//  }
+//
+//  if (status == ONGOING) {
+//    return 1;   // all pieces are ongoing.
+//  } else if (status == WAITING) {
+//    return -1;  // some pieces are not ready.
+//  } else {
+//    verify(0);
+//  }
 }
+
 
 void TxnChopper::Merge(Command &cmd) {
   auto simple_cmd = (SimpleCommand *) &cmd;
@@ -116,7 +140,7 @@ void TxnChopper::Merge(Command &cmd) {
 
 bool TxnChopper::HasMoreSubCmd() {
 
-  if (n_pieces_all_ == n_pieces_out_)
+  if (GetNPieceAll() == n_pieces_out_)
     return false;
   else
     return true;
@@ -153,9 +177,9 @@ void TxnChopper::read_only_reset() {
 bool TxnChopper::read_only_start_callback(int pi,
                                           int *res,
                                           map<int32_t, mdb::Value> &output) {
-  verify(pi < n_pieces_all_);
+  verify(pi < GetNPieceAll());
   if (res == NULL) { // phase one, store outputs only
-    outputs_.resize(n_pieces_all_);
+//    outputs_.resize(n_pieces_all_);
     outputs_[pi] = output;
   }
   else { // phase two, check if this try not failed yet
@@ -163,12 +187,12 @@ bool TxnChopper::read_only_start_callback(int pi,
     // store current outputs
     if (read_only_failed_) {
       *res = REJECT;
-      if (n_pieces_all_ != outputs_.size())
-        outputs_.resize(n_pieces_all_);
+//      if (n_pieces_all_ != outputs_.size())
+//        outputs_.resize(n_pieces_all_);
     }
     else if (pi >= outputs_.size()) {
       *res = REJECT;
-      outputs_.resize(n_pieces_all_);
+//      outputs_.resize(n_pieces_all_);
       read_only_failed_ = true;
     }
     else if (is_consistent(outputs_[pi], output))

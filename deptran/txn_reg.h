@@ -1,5 +1,6 @@
 #pragma once
 #include "__dep__.h"
+#include "constants.h"
 namespace rococo {
 
 class RequestHeader;
@@ -10,14 +11,16 @@ typedef std::map<
     mdb::Row *> row_map_t;
 
 class DTxn;
+class TxnChopper;
+class TxnRequest;
 
-typedef std::function<void(
-    Executor* exec,
-    DTxn *dtxn,
-    const RequestHeader &header,
-    map<int32_t, Value> &input,
-    rrr::i32 *res,
-    map<int32_t, Value> &output //,
+
+typedef std::function<void(Executor* exec,
+                           DTxn *dtxn,
+                           const RequestHeader &header,
+                           map<int32_t, Value> &input,
+                           rrr::i32 *res,
+                           map<int32_t, Value> &output //,
 //    rrr::i32 *output_size//,
 //    row_map_t *row_map
 )> TxnHandler;
@@ -33,11 +36,31 @@ typedef struct {
   defer_t defer;
 } txn_handler_defer_pair_t;
 
+typedef std::function<bool(TxnChopper*,
+                           map<int32_t, Value>&)>
+    PieceCallbackHandler;
+
+//class PieceCallbackMap {
+// public:
+//  map<std::pair<txntype_t, innid_t>, PieceCallbackHandler> callbacks_ = {};
+//  virtual PieceCallbackHandler& Get(txntype_t txn_type, innid_t inn_id) {
+//    return callbacks_.at(std::make_pair(txn_type, inn_id));
+//  }
+//
+//  virtual void Set(txntype_t txn_type, innid_t inn_id,
+//                   PieceCallbackHandler& handler) {
+//    callbacks_[std::make_pair(txn_type, inn_id)] = handler;
+//  }
+//};
+
+
 /**
 * This class holds all the hard-coded transactions pieces.
 */
 class TxnRegistry {
  public:
+
+  TxnRegistry() : callbacks_() {};
 
   void reg(base::i32 t_type, base::i32 p_type,
            defer_t defer, const TxnHandler &txn_handler) {
@@ -56,10 +79,18 @@ class TxnRegistry {
   }
   txn_handler_defer_pair_t get(const RequestHeader &req_hdr);
 
- private:
+ public:
   // prevent instance creation
 //  TxnRegistry() { }
-  map<std::pair<base::i32, base::i32>, txn_handler_defer_pair_t> all_;
+  map<std::pair<base::i32, base::i32>, txn_handler_defer_pair_t> all_ = {};
+  map<std::pair<txntype_t, innid_t>, PieceCallbackHandler> callbacks_ = {};
+  map<std::pair<txntype_t, innid_t>,
+      std::pair<string, int32_t>> sharding_input_ = {};
+  map<txntype_t, map<innid_t, set<int32_t>>> input_vars_ = {};
+  map<txntype_t, std::function<void(TxnChopper* ch, TxnRequest& req)> > init_ = {};
+  map<txntype_t, std::function<void(TxnChopper* ch)>> retry_ = {};
+
+//  PieceCallbackMap callbacks_;
 //    static map<std::pair<base::i32, base::i32>, LockSetOracle> lck_oracle_;
 
 };

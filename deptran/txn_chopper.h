@@ -7,6 +7,7 @@
 #include "rcc/graph.h"
 #include "rcc/graph_marshaler.h"
 #include "rcc_rpc.h"
+#include "txn_reg.h"
 
 namespace rococo {
 
@@ -27,7 +28,7 @@ class TxnReply {
 class TxnRequest {
  public:
   uint32_t txn_type_;
-  std::vector<mdb::Value> input_;    // the inputs for the transactions.
+  map<int32_t, Value> input_;    // the inputs for the transactions.
   int n_try_ = 1;
   std::function<void(TxnReply &)> callback_;
 
@@ -40,7 +41,7 @@ public:
   map<int32_t, Value> input;
   map<int32_t, Value> output;
   int output_size;
-  int par_id;
+  parid_t par_id;
   SimpleCommand() = default;
   virtual parid_t GetPar() {return par_id;}
   virtual Command* GetRootCmd() {return root_;}
@@ -60,30 +61,33 @@ class TxnChopper : public Command {
         return false;
     return true;
   }
-  std::vector<map<int32_t, Value> > outputs_;
+  map<int32_t, map<int32_t, Value> > outputs_;
   bool read_only_failed_;
 
   double pre_time_;
 
   bool early_return_;
 
-protected:
+ public:
   txnid_t txn_id_; // TODO obsolete
 
  public:
   txntype_t txn_type_;
+  TxnRegistry *txn_reg_ = nullptr;
 
   Graph<TxnInfo> gra_;
 
-  std::vector<map<int32_t, Value> > inputs_;  // input of each piece.
+  map<int32_t, Value> ws_ = {}; // workspace.
+  map<int32_t, Value> ws_init_ = {};
+  map<int32_t, map<int32_t, Value> > inputs_;  // input of each piece.
   //std::vector<std::vector<mdb::Value> > outputs_; // output of each piece.
-  std::vector<int32_t> output_size_;
-  std::vector<int32_t> p_types_;                  // types of each piece.
+  map<int32_t, int32_t> output_size_;
+  map<int32_t, cmdtype_t> p_types_;                  // types of each piece.
+  map<int32_t, uint32_t> sharding_;
   std::atomic<bool> commit_;
-  std::vector<uint32_t> sharding_;
   /** which server to which piece */
-  std::vector<CommandStatus> status_; // -1 waiting; 0 ready; 1 ongoing; 2 finished;
-  std::vector<Command*> cmd_vec_;
+  map<int32_t, CommandStatus> status_; // -1 waiting; 0 ready; 1 ongoing; 2 finished;
+  map<int32_t, Command*> cmd_;
   std::set<parid_t> partitions_;
   /** server involved*/
 
@@ -105,15 +109,6 @@ protected:
 
   virtual cmdtype_t type() {return txn_type_;};
 
-  /** this is even a better than better way to write hard coded coordinator.*/
-  //virtual int next_piece(std::vector<std::vector<mdb::Value> > &input, int32_t &server_id, std::vector<int> &pi, std::vector<int> &p_type);
-
-  virtual int batch_next_piece(BatchRequestHeader *batch_header,
-                               std::vector<mdb::Value> &input,
-                               int32_t &server_id,
-                               std::vector<int> &pi,
-                               Coordinator *coo);
-
   virtual int next_piece(map<int32_t, Value>* &input,
                          int &output_size,
                          int32_t &server_id,
@@ -124,9 +119,7 @@ protected:
 
   // phase 1, res is NULL
   // phase 2, res returns SUCCESS is output is consistent with previous value
-  virtual bool start_callback(const std::vector<int> &pi,
-                              int res,
-                              BatchStartArgsHelper &bsah) = 0;
+
   virtual bool start_callback(int pi,
                               int res,
                               map<int32_t, Value> &output) = 0;
@@ -141,12 +134,18 @@ protected:
   virtual bool read_only_start_callback(int pi,
                                         int *res,
                                         map<int32_t, Value> &output);
-
+  virtual int GetNPieceAll() {
+    return n_pieces_all_;
+  }
   virtual bool IsFinished(){verify(0);}
   virtual void Merge(Command&);
   virtual bool HasMoreSubCmd();
   virtual Command* GetNextSubCmd();
   virtual set<parid_t> GetPars();
+  virtual parid_t GetPiecePar(innid_t inn_id) {
+    verify(sharding_.find(inn_id) != sharding_.end());
+    return sharding_[inn_id];
+  }
 
   inline bool can_retry() {
     return (max_try_ == 0 || n_try_ < max_try_);

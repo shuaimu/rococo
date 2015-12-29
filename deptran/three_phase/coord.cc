@@ -31,7 +31,8 @@ RequestHeader ThreePhaseCoordinator::gen_header(TxnChopper *ch) {
 void ThreePhaseCoordinator::do_one(TxnRequest &req) {
   // pre-process
   std::lock_guard<std::mutex> lock(this->mtx_);
-  TxnChopper *ch = Frame().CreateChopper(req);
+  TxnChopper *ch = Frame().CreateChopper(req, txn_reg_);
+  verify(txn_reg_ != nullptr);
   cmd_ = ch;
   cmd_id_ = this->next_txn_id();
   cleanup(); // In case of reuse.
@@ -129,7 +130,7 @@ void ThreePhaseCoordinator::Start() {
 
   StartRequest req;
   req.cmd_id = cmd_id_;
-  Command *subcmd;
+  SimpleCommand *subcmd;
 
   auto phase = phase_;
   std::function<void(StartReply &)> callback = [this, phase](StartReply &reply) {
@@ -138,7 +139,7 @@ void ThreePhaseCoordinator::Start() {
   };
 
   int cnt = 0;
-  while ((subcmd = cmd_->GetNextSubCmd()) != nullptr) {
+  while ((subcmd = (SimpleCommand*)cmd_->GetNextSubCmd()) != nullptr) {
     req.pie_id = next_pie_id();
     n_start_++;
     cnt++;
@@ -186,7 +187,7 @@ void ThreePhaseCoordinator::StartAck(StartReply &reply, phase_t phase) {
     if (cmd_->HasMoreSubCmd()) {
       Log_debug("command has more sub-cmd, cmd_id: %lx,"
                     " n_started_: %d, n_pieces: %d",
-                cmd_id_, ch->n_pieces_out_, ch->n_pieces_all_);
+                cmd_id_, ch->n_pieces_out_, ch->GetNPieceAll());
       Start();
     } else if (AllStartAckCollected()) {
       Log_debug("receive all start acks, txn_id: %ld; START PREPARE", cmd_id_);
