@@ -1,3 +1,4 @@
+#include <deptran/mdcc/coordinator.h>
 #include "__dep__.h"
 #include "frame.h"
 #include "config.h"
@@ -37,6 +38,7 @@
 // rw benchmark
 #include "bench/rw_benchmark/piece.h"
 #include "bench/rw_benchmark/chopper.h"
+#include "bench/rw_benchmark/sharding.h"
 
 // micro bench
 #include "bench/micro/piece.h"
@@ -46,29 +48,23 @@
 
 #include "tpl/sched.h"
 #include "occ/sched.h"
-#include "coordinator.h"
 #include "deptran/mdcc/coordinator.h"
-
-#include "bench/simple/SimpleBenchSharding.h"
-#include "bench/simple/SimpleBenchChopper.h"
 
 namespace rococo {
 
 Sharding* Frame::CreateSharding() {
-
   Sharding* ret;
   auto bench = Config::config_s->benchmark_;
   switch (bench) {
     case TPCC_REAL_DIST_PART:
       ret = new TPCCDSharding();
       break;
-    case SIMPLE_BENCH:
-      ret = new SimpleBenchSharding();
+    case RW_BENCHMARK:
+      ret = new RWBenchmarkSharding();
       break;
     default:
       verify(0);
   }
-
   return ret;
 }
 
@@ -207,8 +203,6 @@ TxnChopper* Frame::CreateChopper(TxnRequest &req, TxnRegistry* reg) {
     case MICRO_BENCH:
       ch = new MicroBenchChopper();
       break;
-    case SIMPLE_BENCH:
-      ch = new SimpleBenchChopper();
     default:
       verify(0);
   }
@@ -298,7 +292,6 @@ TxnGenerator * Frame::CreateTxnGenerator() {
     case MICRO_BENCH:
     default:
       gen = new TxnGenerator(Config::GetConfig()->sharding_);
-//      verify(0);
   }
   return gen;
 

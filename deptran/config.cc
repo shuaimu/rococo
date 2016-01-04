@@ -310,6 +310,7 @@ void Config::LoadSiteYML(YAML::Node config) {
     for (auto group_it = group.begin(); group_it != group.end(); group_it++) {
       auto site_addr = group_it->as<string>();
       SiteInfo info(site_id++, site_addr);
+      info.partition_id_ = replica_group.partition_id;
       info.type_ = SERVER;
       replica_group.replicas.push_back(info);
     }
