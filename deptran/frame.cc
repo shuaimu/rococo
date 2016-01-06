@@ -1,3 +1,4 @@
+#include <deptran/mdcc/coordinator.h>
 #include "__dep__.h"
 #include "frame.h"
 #include "config.h"
@@ -37,6 +38,7 @@
 // rw benchmark
 #include "bench/rw_benchmark/piece.h"
 #include "bench/rw_benchmark/chopper.h"
+#include "bench/rw_benchmark/sharding.h"
 
 // micro bench
 #include "bench/micro/piece.h"
@@ -46,22 +48,23 @@
 
 #include "tpl/sched.h"
 #include "occ/sched.h"
-
+#include "deptran/mdcc/coordinator.h"
 
 namespace rococo {
 
 Sharding* Frame::CreateSharding() {
-
   Sharding* ret;
   auto bench = Config::config_s->benchmark_;
   switch (bench) {
     case TPCC_REAL_DIST_PART:
       ret = new TPCCDSharding();
       break;
+    case RW_BENCHMARK:
+      ret = new RWBenchmarkSharding();
+      break;
     default:
       verify(0);
   }
-
   return ret;
 }
 
@@ -81,6 +84,7 @@ mdb::Row* Frame::CreateRow(const mdb::Schema *schema,
       break;
 
     case MODE_NONE: // FIXME
+    case MODE_MDCC:
     case MODE_OCC:
       r = mdb::VersionedRow::create(schema, row_data);
       break;
@@ -99,42 +103,53 @@ mdb::Row* Frame::CreateRow(const mdb::Schema *schema,
   return r;
 }
 
-Coordinator* Frame::CreateCoord(cooid_t coo_id,
+CoordinatorBase* Frame::CreateCoord(cooid_t coo_id,
                                 vector<std::string>& servers,
+                                Config* config,
                                 int benchmark,
                                 int mode,
                                 ClientControlServiceImpl *ccsi,
                                 uint32_t id,
-                                bool batch_start) {
-//   TODO
-  Coordinator *coo;
+                                bool batch_start, TxnRegistry* txn_reg) {
+  // TODO: clean this up; make Coordinator subclasses assign txn_reg_
+  CoordinatorBase *coo;
   auto attr = this;
   switch (mode) {
     case MODE_2PL:
       coo = new TPLCoord(coo_id, servers, benchmark,
                          mode, ccsi, id, batch_start);
+      ((Coordinator*)coo)->txn_reg_ = txn_reg;
       break;
     case MODE_OCC:
     case MODE_RPC_NULL:
       coo = new OCCCoord(coo_id, servers,
                              benchmark, mode,
                              ccsi, id, batch_start);
+      ((Coordinator*)coo)->txn_reg_ = txn_reg;
       break;
     case MODE_RCC:
       coo = new RCCCoord(coo_id, servers,
                           benchmark, mode,
                           ccsi, id, batch_start);
+      ((Coordinator*)coo)->txn_reg_ = txn_reg;
       break;
     case MODE_RO6:
       coo = new RO6Coord(coo_id, servers,
                           benchmark, mode,
                           ccsi, id, batch_start);
+      ((Coordinator*)coo)->txn_reg_ = txn_reg;
       break;
     case MODE_NONE:
       coo = new NoneCoord(coo_id, servers,
                            benchmark, mode,
                            ccsi, id,
                            batch_start);
+      ((Coordinator*)coo)->txn_reg_ = txn_reg;
+      break;
+    case MODE_MDCC:
+      coo = new mdcc::MdccCoordinator(coo_id, config,
+                                      benchmark, mode,
+                                      ccsi, id, batch_start);
       break;
     default:
       verify(0);
@@ -258,7 +273,6 @@ Scheduler* Frame::CreateScheduler() {
       break;
     case MODE_NONE:
     case MODE_RPC_NULL:
-
     case MODE_RCC:
     case MODE_RO6:
       break;
@@ -284,7 +298,6 @@ TxnGenerator * Frame::CreateTxnGenerator() {
     case MICRO_BENCH:
     default:
       gen = new TxnGenerator(Config::GetConfig()->sharding_);
-//      verify(0);
   }
   return gen;
 

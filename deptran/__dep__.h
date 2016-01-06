@@ -1,7 +1,5 @@
 #pragma once
 
-
-
 //C++ standard library
 #include <map>
 #include <unordered_map>
@@ -89,4 +87,5 @@ using rrr::Marshal;
 #include "memdb/txn_unsafe.h"
 #include "memdb/utils.h"
 #include "memdb/row.h"
+#include "deptran/marshal-value.h"
 using mdb::Value;

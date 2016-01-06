@@ -14,7 +14,16 @@ class ClientControlServiceImpl;
 
 enum CoordinatorStage { START, PREPARE, FINISH };
 
-class Coordinator {
+class CoordinatorBase {
+public:
+  std::mutex mtx_;
+  uint32_t n_start_ = 0;
+  virtual void do_one(TxnRequest &) = 0;
+  virtual void cleanup() = 0;
+  virtual void restart(TxnChopper *ch) = 0;
+};
+
+class Coordinator : public CoordinatorBase {
  public:
   uint32_t coo_id_;
   int benchmark_;
@@ -36,13 +45,11 @@ class Coordinator {
 
   std::mutex mtx_;
   std::mutex start_mtx_;
-  Commo *commo_;
   Recorder *recorder_;
   Command *cmd_; 
   cmdid_t cmd_id_;
   CoordinatorStage stage_ = START;
   phase_t phase_ = 0;
-//  map<innid_t, Command*> cmd_map_;
   map<innid_t, bool> start_ack_map_;
   Sharding* sharding_ = nullptr;
   TxnRegistry *txn_reg_ = nullptr;

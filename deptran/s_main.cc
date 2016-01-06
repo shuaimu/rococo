@@ -35,61 +35,45 @@ void client_setup_heartbeat() {
 }
 
 void client_launch_workers() {
-  uint32_t duration = Config::GetConfig()->get_duration();
-  if (duration == 0)
-    verify(0);
-
-  std::vector<std::string> servers;
-  Config::GetConfig()->get_all_site_addr(servers);
   // load some common configuration
-  int benchmark = Config::GetConfig()->get_benchmark();
-  int mode = Config::GetConfig()->get_mode();
-  uint32_t concurrent_txn = Config::GetConfig()->get_concurrent_txn();
-  bool batch_start = Config::GetConfig()->get_batch_start();
   // start client workers in new threads.
-  vector<Config::SiteInfo> infos = Config::GetConfig()->GetMyClients();
+  vector<Config::SiteInfo> client_sites = Config::GetConfig()->GetMyClients();
   vector<std::thread> client_threads;
-  vector<ClientWorker> workers(infos.size());
-  for (uint32_t thread_index = 0; thread_index < infos.size(); thread_index++) {
-    auto &worker = workers[thread_index];
-    worker.txn_req_factory_ = Frame().CreateTxnGenerator();
-    workers[thread_index].servers = &servers;
-    workers[thread_index].coo_id = infos[thread_index].id;
-    workers[thread_index].benchmark = benchmark;
-    workers[thread_index].mode = mode;
-    workers[thread_index].batch_start = batch_start;
-    workers[thread_index].id = thread_index;
-    workers[thread_index].duration = duration;
-    workers[thread_index].ccsi = ccsi_g;
-    workers[thread_index].n_outstanding_ = concurrent_txn;
+  vector<ClientWorker*> workers;
+  for (uint32_t client_id = 0; client_id < client_sites.size(); client_id++) {
+    ClientWorker* worker = new ClientWorker(client_id, client_sites[client_id],
+                                   Config::GetConfig(), ccsi_g);
+    workers.push_back(worker);
     client_threads.push_back(std::thread(&ClientWorker::work,
-                                         &workers[thread_index]));
+                                         worker));
   }
   for (auto &th: client_threads) {
     th.join();
   }
-
+  for (auto worker : workers) {
+    delete worker;
+  }
 }
 
 
 void server_launch_worker() {
-  vector<Config::SiteInfo> infos = Config::GetConfig()->GetMyServers();
-  svr_workers = new vector<ServerWorker>(infos.size());
-
-  for (uint32_t index = 0; index < infos.size(); index++) {
-    Log_info("launching server, site: %x", infos[index].id);
-    auto &worker = (*svr_workers)[index];
-    worker.sharding_ = Frame().CreateSharding(Config::GetConfig()->sharding_);
-    worker.sharding_->BuildTableInfoPtr();
-    // register txn piece logic
-    worker.RegPiece();
-    worker.site_info_ = &infos[index];
-    // setup communication between controller script
-    worker.SetupHeartbeat();
-    // populate table according to benchmarks
-    worker.PopTable();
-    // start server service
-    worker.SetupService();
+  Config* cfg = Config::GetConfig();
+  for (auto& replica_group : cfg->replica_groups_) {
+    for (auto& site_info : replica_group.replicas) {
+        Log_info("launching site: %x, bind address %s", site_info.id, site_info.GetBindAddress().c_str());
+        auto worker = new ServerWorker();
+        worker->sharding_ = Frame().CreateSharding(Config::GetConfig()->sharding_);
+        worker->sharding_->BuildTableInfoPtr();
+        // register txn piece logic
+        worker->RegPiece();
+        worker->site_info_ = &site_info;
+        // setup communication between controller script
+        worker->SetupHeartbeat();
+        // populate table according to benchmarks
+        worker->PopTable();
+        // start server service
+        worker->SetupService();
+    }
   }
 }
 

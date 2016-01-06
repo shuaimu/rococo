@@ -263,10 +263,6 @@ Config::Config(char           *ctrl_hostname,
 
 void Config::Load() {
   for (auto &name: config_paths_) {
-    // XML configurations are deprecated
-//    if (boost::algorithm::ends_with(name, "xml")) {
-//      LoadXML(name);
-//    }
     if (boost::algorithm::ends_with(name, "yml")) {
       LoadYML(name);
     } else {
@@ -279,13 +275,7 @@ void Config::Load() {
 }
 
 void Config::LoadYML(std::string &filename) {
-//  YAML::Node config = YAML::LoadFile(name);
-
   YAML::Node config = YAML::LoadFile(filename);
-
-//  verify(Sharding::sharding_s);
-
-//  Sharding::sharding_s = new Sharding();
 
   if (config["site"]) {
     LoadSiteYML(config["site"]);
@@ -314,14 +304,19 @@ void Config::LoadSiteYML(YAML::Node config) {
   auto servers = config["server"];
   int partition_id = 0;
   int site_id = 0;
+  int locale_id = 0;
   for (auto server_it = servers.begin(); server_it != servers.end(); server_it++) {
     auto group = *server_it;
+    locale_id=0;
     ReplicaGroup replica_group(partition_id);
     for (auto group_it = group.begin(); group_it != group.end(); group_it++) {
       auto site_addr = group_it->as<string>();
       SiteInfo info(site_id++, site_addr);
+      info.partition_id_ = replica_group.partition_id;
+      info.locale_id = locale_id;
       info.type_ = SERVER;
       replica_group.replicas.push_back(info);
+      locale_id++;
     }
     replica_groups_.push_back(replica_group);
     partition_id++;
@@ -330,13 +325,17 @@ void Config::LoadSiteYML(YAML::Node config) {
   auto clients = config["client"];
   for (auto client_it = clients.begin(); client_it != clients.end(); client_it++) {
     auto group = *client_it;
-    vector<string> v;
+    int locale_id = 0;
     for (auto group_it = group.begin(); group_it != group.end(); group_it++) {
       auto site_name = group_it->as<string>();
       SiteInfo info(site_id++);
       info.name = site_name;
       info.type_ = CLIENT;
+      // TODO: add ability to assign clients to a locale;
+      // for now default to the position in the config array.
+      info.locale_id = locale_id;
       par_clients_.push_back(info);
+      locale_id++;
     }
   }
 }
@@ -437,6 +436,7 @@ std::string Config::site2host_name(std::string& sitename) {
   }
 }
 
+
 void Config::LoadModeYML(YAML::Node config) {
   auto mode_str = config["cc"].as<string>();
   boost::algorithm::to_lower(mode_str);
@@ -462,7 +462,7 @@ void Config::LoadBenchYML(YAML::Node config) {
   txn_weight_.push_back(txn_weights_["order_status"]);
   txn_weight_.push_back(txn_weights_["delivery"]);
   txn_weight_.push_back(txn_weights_["stock_level"]);
-//  this->InitTPCCD();
+
   sharding_ = Frame().CreateSharding();
   auto populations = config["population"];
   auto &tb_infos = sharding_->tb_infos_;
@@ -576,9 +576,6 @@ void Config::LoadShardingYML(YAML::Node config) {
       verify(tbl_info.num_site > 0 && tbl_info.num_site <= get_num_site());
       tbl_info.symbol = tbl_types_map_["sorted"];
     }
-    verify(tbl_info.num_site > 0 && tbl_info.num_site <= get_num_site());
-    // set tb_info.symbol TBL_SORTED or TBL_UNSORTED or TBL_SNAPSHOT
-    tbl_info.symbol = tbl_types_map_["sorted"];
   }
 }
 
@@ -666,10 +663,6 @@ const char * Config::get_ctrl_init() {
   return ctrl_init_;
 }
 
-// const char *Config::get_ctrl_run() {
-//    return ctrl_run_;
-// }
-//
 // TODO obsolete
 int Config::get_all_site_addr(std::vector<std::string>& servers) {
   for (auto& site : GetMyServers()) {
@@ -691,19 +684,6 @@ int Config::get_site_addr(unsigned int sid, std::string& server) {
   server.assign(siteaddr);
   return 0;
 }
-
-//int Config::get_my_addr(std::string& server) {
-//  if (site_.size() == 0) verify(0);
-//
-//  if (sid_ >= num_site_) verify(0);
-//
-//  server.assign("0.0.0.0:");
-//  uint32_t len = site_[sid_].length(), p_start = 0;
-//  uint32_t port_pos = site_[sid_].find_first_of(':') + 1;
-//  verify(p_start < len && p_start > 0);
-//  server.append(site_[sid_].substr(port_pos));
-//  return 0;
-//}
 
 int Config::get_threads(unsigned int& threads) {
   verify(0);
