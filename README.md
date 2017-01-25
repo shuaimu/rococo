@@ -1,11 +1,10 @@
 
 ## Rococo
 
-[![Travis-CI](https://travis-ci.org/msmummy/rococo.svg?branch=master)]
-(https://travis-ci.org/msmummy/rococo/)
-<!--[![Code Climate](https://codeclimate.com/github/msmummy/rococo/badges/gpa.svg)]
-(https://codeclimate.com/github/msmummy/rococo)-->
-<!--[![Join the chat at https://gitter.im/msmummy/rococo](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/msmummy/rococo?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)-->
+### *News*
+
+A newer version has been merged into the [Janus project](https://github.com/NYU-NEWS/janus). This repo has been deprecated.
+
 
 ### What is Rococo?
 
