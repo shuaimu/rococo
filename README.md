@@ -3,7 +3,7 @@
 
 ### *News*
 
-A newer version has been merged into the [Janus project](https://github.com/NYU-NEWS/janus). This repo has been deprecated.
+A newer version has been merged into the [Janus project](https://github.com/NYU-NEWS/janus). This repo is deprecated.
 
 
 ### What is Rococo?
