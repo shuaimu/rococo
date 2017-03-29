@@ -1,9 +1,7 @@
 
 ## Rococo
 
-### *News*
-
-A newer version has been merged into the [Janus project](https://github.com/NYU-NEWS/janus). This repo is deprecated.
+### *A newer version is being merged into the [Janus project](https://github.com/NYU-NEWS/janus). This repo is deprecated.*
 
 
 ### What is Rococo?
@@ -37,7 +35,7 @@ There is a TPC-C implementation sharded by districts (rather than by warehouses 
 
 ### Setup
 
-There is a simple getting started guide [here](https://github.com/msmummy/rococo/wiki/Getting-Started-Guide).
+There is a simple getting started guide [here](https://github.com/mpaxos/rococo/wiki/Setup-guide).
 
 If you are using Rococo as comparison in your project, we prefer that you email us about your testing setup and results so that we can help make sure that the results are correct.
 
